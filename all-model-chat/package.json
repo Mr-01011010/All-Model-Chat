@@ -8,6 +8,9 @@
     "build": "vite build",
     "preview": "vite preview"
   },
+  "engines": {
+   "node": ">=20.0.0"
+  },
   "dependencies": {
     "@google/genai": "^1.2.0",
     "dompurify": "^3.1.6",
