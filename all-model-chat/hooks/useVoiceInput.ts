@@ -1,124 +1,152 @@
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { compressAudioToMp3 } from '../utils/audioCompression';
+import { useRecorder } from './core/useRecorder';
+import { checkShortcut } from '../utils/shortcutUtils';
+import { ShortcutMap } from '../types';
 
 interface UseVoiceInputProps {
   onTranscribeAudio: (file: File) => Promise<string | null>;
   setInputText: React.Dispatch<React.SetStateAction<string>>;
+  textareaRef: React.RefObject<HTMLTextAreaElement>;
   adjustTextareaHeight: () => void;
   isAudioCompressionEnabled?: boolean;
+  isSystemAudioRecordingEnabled?: boolean;
+  customShortcuts?: ShortcutMap;
 }
 
 export const useVoiceInput = ({
   onTranscribeAudio,
   setInputText,
+  textareaRef,
   adjustTextareaHeight,
   isAudioCompressionEnabled = true,
+  isSystemAudioRecordingEnabled = false,
+  customShortcuts,
 }: UseVoiceInputProps) => {
-  const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [isMicInitializing, setIsMicInitializing] = useState(false);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingCancelledRef = useRef(false);
+  const handleRecordingComplete = useCallback(async (audioBlob: Blob) => {
+    if (audioBlob.size > 0) {
+        setIsTranscribing(true);
+        try {
+            // Create a File object with the correct MIME type (WebM) immediately.
+            // This ensures downstream logic knows what container format this is.
+            const timestamp = Date.now();
+            const rawFile = new File([audioBlob], `voice-input-${timestamp}.webm`, { type: 'audio/webm' });
+            
+            let fileToTranscribe: File;
+            
+            if (isAudioCompressionEnabled) {
+                try {
+                    fileToTranscribe = await compressAudioToMp3(rawFile);
+                } catch (error) {
+                    console.error("Error compressing audio, falling back to original:", error);
+                    fileToTranscribe = rawFile;
+                }
+            } else {
+                fileToTranscribe = rawFile;
+            }
 
-  const handleStopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      recordingCancelledRef.current = false;
-      mediaRecorderRef.current.stop();
-    }
-    setIsRecording(false);
-  };
-
-  const handleCancelRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      recordingCancelledRef.current = true;
-      mediaRecorderRef.current.stop();
-    }
-    audioChunksRef.current = [];
-    setIsRecording(false);
-  };
-
-  const handleStartRecording = useCallback(async () => {
-    try {
-      if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
-        alert("Your browser does not support audio recording.");
-        return;
-      }
-      recordingCancelledRef.current = false;
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+            const transcribedText = await onTranscribeAudio(fileToTranscribe);
+            
+            if (transcribedText) {
+                const textToInsert = transcribedText.trim();
+                
+                if (textToInsert) {
+                    const textarea = textareaRef.current;
+                    if (textarea) {
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const currentVal = textarea.value;
+                        
+                        const prefix = currentVal.substring(0, start);
+                        const suffix = currentVal.substring(end);
+                        
+                        // Intelligent spacing: Add space if preceding char is not whitespace and prefix isn't empty
+                        const needsSpace = prefix.length > 0 && !/\s$/.test(prefix);
+                        const finalInsert = (needsSpace ? ' ' : '') + textToInsert;
+                        
+                        const newVal = prefix + finalInsert + suffix;
+                        setInputText(newVal);
+                        
+                        // Update cursor position and height
+                        requestAnimationFrame(() => {
+                            textarea.focus();
+                            const newCursorPos = start + finalInsert.length;
+                            textarea.setSelectionRange(newCursorPos, newCursorPos);
+                            adjustTextareaHeight();
+                        });
+                    } else {
+                        // Fallback behavior
+                        setInputText(prev => (prev ? `${prev.trim()} ${textToInsert}` : textToInsert).trim());
+                        setTimeout(() => adjustTextareaHeight(), 0);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error processing/transcribing audio:", error);
+        } finally {
+            setIsTranscribing(false);
         }
-      };
-
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(track => track.stop());
-        if (recordingCancelledRef.current) {
-          return;
-        }
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        if (audioBlob.size > 0) {
-          setIsTranscribing(true);
-          try {
-              let fileToTranscribe: File;
-              
-              if (isAudioCompressionEnabled) {
-                  // Convert blob to MP3 via utility
-                  try {
-                      fileToTranscribe = await compressAudioToMp3(audioBlob);
-                  } catch (error) {
-                      console.error("Error compressing audio, falling back to original:", error);
-                      fileToTranscribe = new File([audioBlob], `voice-input-${Date.now()}.webm`, { type: 'audio/webm' });
-                  }
-              } else {
-                  fileToTranscribe = new File([audioBlob], `voice-input-${Date.now()}.webm`, { type: 'audio/webm' });
-              }
-
-              const transcribedText = await onTranscribeAudio(fileToTranscribe);
-              
-              if (transcribedText) {
-                setInputText(prev => (prev ? `${prev.trim()} ${transcribedText.trim()}` : transcribedText.trim()).trim());
-                setTimeout(() => adjustTextareaHeight(), 0);
-              }
-          } catch (error) {
-              console.error("Error processing/transcribing audio:", error);
-          } finally {
-              setIsTranscribing(false);
-          }
-        }
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Error accessing microphone:", err);
-      alert("Could not access microphone. Please check permissions.");
-    } finally {
-      setIsMicInitializing(false);
     }
-  }, [onTranscribeAudio, setInputText, adjustTextareaHeight, isAudioCompressionEnabled]);
+  }, [onTranscribeAudio, setInputText, adjustTextareaHeight, isAudioCompressionEnabled, textareaRef]);
+
+  const { 
+      status, 
+      isInitializing, 
+      startRecording: startCore, 
+      stopRecording, 
+      cancelRecording 
+  } = useRecorder({
+      onStop: handleRecordingComplete
+  });
+
+  const isRecording = status === 'recording';
+
+  const startRecording = useCallback(() => {
+      startCore(isSystemAudioRecordingEnabled);
+  }, [startCore, isSystemAudioRecordingEnabled]);
 
   const handleVoiceInputClick = () => {
     if (isRecording) {
-      handleStopRecording();
+      stopRecording();
     } else {
-      setIsMicInitializing(true);
-      handleStartRecording();
+      startRecording();
     }
   };
+
+  // Toggle Record Logic with Custom Shortcuts
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          const shortcuts = customShortcuts;
+          if (!shortcuts) return;
+
+          if (checkShortcut(e, shortcuts.toggleVoice) && !e.repeat) {
+              e.preventDefault(); // Prevent browser history / hide window
+              
+              if (isTranscribing || isInitializing) return;
+
+              if (isRecording) {
+                  stopRecording();
+              } else {
+                  startRecording();
+              }
+          }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+          window.removeEventListener('keydown', handleKeyDown);
+      };
+  }, [isRecording, isTranscribing, isInitializing, startRecording, stopRecording, customShortcuts]);
 
   return {
     isRecording,
     isTranscribing,
-    isMicInitializing,
+    isMicInitializing: isInitializing,
     handleVoiceInputClick,
-    handleCancelRecording,
+    handleCancelRecording: cancelRecording,
   };
 };

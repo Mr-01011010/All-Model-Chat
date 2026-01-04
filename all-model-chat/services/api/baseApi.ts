@@ -12,7 +12,7 @@ const MAX_POLLING_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
 export { POLLING_INTERVAL_MS, MAX_POLLING_DURATION_MS };
 
-export const getClient = (apiKey: string, baseUrl?: string | null): GoogleGenAI => {
+export const getClient = (apiKey: string, baseUrl?: string | null, httpOptions?: any): GoogleGenAI => {
   try {
       // Sanitize the API key to replace common non-ASCII characters that might
       // be introduced by copy-pasting from rich text editors. This prevents
@@ -35,6 +35,10 @@ export const getClient = (apiKey: string, baseUrl?: string | null): GoogleGenAI 
           // Remove trailing slash for consistency
           config.baseUrl = baseUrl.trim().replace(/\/$/, '');
       }
+
+      if (httpOptions) {
+          config.httpOptions = httpOptions;
+      }
       
       return new GoogleGenAI(config);
   } catch (error) {
@@ -44,20 +48,20 @@ export const getClient = (apiKey: string, baseUrl?: string | null): GoogleGenAI 
   }
 };
 
-export const getApiClient = (apiKey?: string | null, baseUrl?: string | null): GoogleGenAI => {
+export const getApiClient = (apiKey?: string | null, baseUrl?: string | null, httpOptions?: any): GoogleGenAI => {
     if (!apiKey) {
         const silentError = new Error("API key is not configured in settings or provided.");
         silentError.name = "SilentError";
         throw silentError;
     }
-    return getClient(apiKey, baseUrl);
+    return getClient(apiKey, baseUrl, httpOptions);
 };
 
 /**
  * Async helper to get an API client with settings (proxy, etc) loaded from DB.
  * Respects the `useApiProxy` toggle.
  */
-export const getConfiguredApiClient = async (apiKey: string): Promise<GoogleGenAI> => {
+export const getConfiguredApiClient = async (apiKey: string, httpOptions?: any): Promise<GoogleGenAI> => {
     const settings = await dbService.getAppSettings();
     
     // Only use the proxy URL if Custom Config AND Use Proxy are both enabled
@@ -72,7 +76,7 @@ export const getConfiguredApiClient = async (apiKey: string): Promise<GoogleGenA
         }
     }
     
-    return getClient(apiKey, apiProxyUrl);
+    return getClient(apiKey, apiProxyUrl, httpOptions);
 };
 
 export const buildGenerationConfig = (
@@ -144,9 +148,11 @@ export const buildGenerationConfig = (
     // but we can omit the global config to avoid conflict, or set it if per-part isn't used.
     // However, if we are NOT Gemini 3, we MUST use global config.
     const isGemini3 = isGemini3Model(modelId);
+    // Gemma models do not support media resolution at all
+    const isGemma = modelId.toLowerCase().includes('gemma');
     
-    if (!isGemini3 && mediaResolution) {
-        // For non-Gemini 3 models, apply global resolution if specified
+    if (!isGemini3 && !isGemma && mediaResolution) {
+        // For non-Gemini 3 models (and not Gemma), apply global resolution if specified
         generationConfig.mediaResolution = mediaResolution;
     } 
     // Note: For Gemini 3, we don't set global mediaResolution here because we inject it into parts in `buildContentParts`.
@@ -162,7 +168,7 @@ export const buildGenerationConfig = (
         // Gemini 3.0 supports both thinkingLevel and thinkingBudget.
         // We prioritize budget if it's explicitly set (>0).
         generationConfig.thinkingConfig = {
-            includeThoughts: showThoughts,
+            includeThoughts: true, // Always capture thoughts in data; UI toggles visibility
         };
 
         if (thinkingBudget > 0) {
@@ -172,18 +178,16 @@ export const buildGenerationConfig = (
         }
     } else {
         const modelSupportsThinking = [
-            'models/gemini-flash-lite-latest',
             'gemini-2.5-pro',
-            'models/gemini-flash-latest'
         ].includes(modelId) || modelId.includes('gemini-2.5');
 
         if (modelSupportsThinking) {
             // Decouple thinking budget from showing thoughts.
             // `thinkingBudget` controls if and how much the model thinks.
-            // `showThoughts` controls if the `thought` field is returned in the stream.
+            // `includeThoughts` controls if the `thought` field is returned in the stream.
             generationConfig.thinkingConfig = {
                 thinkingBudget: thinkingBudget,
-                includeThoughts: showThoughts,
+                includeThoughts: true, // Always capture thoughts in data; UI toggles visibility
             };
         }
     }
