@@ -1,5 +1,6 @@
 
-import React from 'react';
+
+import React, { useMemo } from 'react';
 import { Header } from '../header/Header';
 import { MessageList } from '../chat/MessageList';
 import { ChatInput } from '../chat/input/ChatInput';
@@ -7,6 +8,7 @@ import { DragDropOverlay } from '../chat/overlays/DragDropOverlay';
 import { ModelsErrorDisplay } from '../chat/overlays/ModelsErrorDisplay';
 import { ChatAreaProps } from './chat-area/ChatAreaProps';
 import { useChatArea } from './chat-area/useChatArea';
+import { getShortcutDisplay } from '../../utils/shortcutUtils';
 
 // Re-export props for consumers like useAppProps
 export type { ChatAreaProps };
@@ -18,11 +20,12 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
     onNewChat, onOpenSettingsModal, onOpenScenariosModal, onToggleHistorySidebar, isLoading,
     currentModelName, availableModels, selectedModelId, onSelectModel,
     isSwitchingModel, isHistorySidebarOpen, onLoadCanvasPrompt, isCanvasPromptActive,
+    onToggleBBox, isBBoxModeActive,
     isKeyLocked, themeId, modelsLoadingError,
     messages, scrollContainerRef, setScrollContainerRef, onScrollContainerScroll, onEditMessage,
     onDeleteMessage, onRetryMessage, showThoughts, themeColors, baseFontSize,
     expandCodeBlocksByDefault, isMermaidRenderingEnabled, isGraphvizRenderingEnabled,
-    onSuggestionClick, onOrganizeInfoClick, onFollowUpSuggestionClick, onTextToSpeech, onGenerateCanvas, ttsMessageId, language, scrollNavVisibility,
+    onSuggestionClick, onOrganizeInfoClick, onFollowUpSuggestionClick, onTextToSpeech, onGenerateCanvas, onContinueGeneration, ttsMessageId, language, scrollNavVisibility,
     onScrollToPrevTurn, onScrollToNextTurn, onEditMessageContent, onUpdateMessageFile,
     appSettings, commandedInput, setCommandedInput, onMessageSent,
     selectedFiles, setSelectedFiles, onSendMessage, isEditing, editMode, editingMessageId, setEditingMessageId, onStopGenerating,
@@ -41,6 +44,9 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
   } = props;
 
   const { chatInputHeight, chatInputContainerRef, isImagenModel, handleQuote } = useChatArea(props);
+  
+  const newChatShortcut = useMemo(() => getShortcutDisplay('general.newChat', appSettings), [appSettings]);
+  const pipShortcut = useMemo(() => getShortcutDisplay('general.togglePip', appSettings), [appSettings]);
 
   return (
     <div
@@ -74,6 +80,8 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
         themeId={themeId}
         thinkingLevel={currentChatSettings.thinkingLevel}
         onSetThinkingLevel={onSetThinkingLevel}
+        newChatShortcut={newChatShortcut}
+        pipShortcut={pipShortcut}
       />
 
       <ModelsErrorDisplay error={modelsLoadingError} />
@@ -100,6 +108,7 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
         onFollowUpSuggestionClick={onFollowUpSuggestionClick}
         onTextToSpeech={onTextToSpeech}
         onGenerateCanvas={onGenerateCanvas}
+        onContinueGeneration={onContinueGeneration}
         ttsMessageId={ttsMessageId}
         t={t}
         language={language}
@@ -114,7 +123,7 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
         onQuote={handleQuote}
       />
 
-      <div ref={chatInputContainerRef} className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
+      <div ref={chatInputContainerRef} className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none">
         <div className="pointer-events-auto">
           <ChatInput
             appSettings={appSettings}
@@ -175,6 +184,8 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
             onUpdateMessageContent={onUpdateMessageContent}
             onAddUserMessage={onAddUserMessage}
             onLiveTranscript={onLiveTranscript}
+            onToggleBBox={onToggleBBox}
+            isBBoxModeActive={isBBoxModeActive}
           />
         </div>
       </div>

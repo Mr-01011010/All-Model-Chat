@@ -34,8 +34,8 @@ class GeminiServiceImpl implements GeminiService {
         return generateSpeechApi(apiKey, modelId, text, voice, abortSignal);
     }
 
-    async transcribeAudio(apiKey: string, audioFile: File, modelId: string, prompt?: string): Promise<string> {
-        return transcribeAudioApi(apiKey, audioFile, modelId, prompt);
+    async transcribeAudio(apiKey: string, audioFile: File, modelId: string): Promise<string> {
+        return transcribeAudioApi(apiKey, audioFile, modelId);
     }
 
     async translateText(apiKey: string, text: string, targetLanguage?: string): Promise<string> {
@@ -105,10 +105,11 @@ class GeminiServiceImpl implements GeminiService {
         onPart: (part: Part) => void,
         onThoughtChunk: (chunk: string) => void,
         onError: (error: Error) => void,
-        onComplete: (usageMetadata?: UsageMetadata, groundingMetadata?: any, urlContextMetadata?: any) => void
+        onComplete: (usageMetadata?: UsageMetadata, groundingMetadata?: any, urlContextMetadata?: any) => void,
+        role: 'user' | 'model' = 'user'
     ): Promise<void> {
         return sendStatelessMessageStreamApi(
-            apiKey, modelId, history, parts, config, abortSignal, onPart, onThoughtChunk, onError, onComplete
+            apiKey, modelId, history, parts, config, abortSignal, onPart, onThoughtChunk, onError, onComplete, role
         );
     }
 

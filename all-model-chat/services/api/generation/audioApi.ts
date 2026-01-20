@@ -57,7 +57,7 @@ export const generateSpeechApi = async (apiKey: string, modelId: string, text: s
     }
 };
 
-export const transcribeAudioApi = async (apiKey: string, audioFile: File, modelId: string, prompt?: string): Promise<string> => {
+export const transcribeAudioApi = async (apiKey: string, audioFile: File, modelId: string): Promise<string> => {
     logService.info(`Transcribing audio with model ${modelId}`, { fileName: audioFile.name, size: audioFile.size });
     
     try {
@@ -72,12 +72,11 @@ export const transcribeAudioApi = async (apiKey: string, audioFile: File, modelI
         };
 
         const textPart: Part = {
-            // Updated default user prompt to be more explicit
-            text: prompt && prompt.trim() ? prompt : "Transcribe the audio exactly as spoken.",
+            text: "Transcribe audio.",
         };
         
         const config: any = {
-          systemInstruction: "Transcribe the audio verbatim into text. Return ONLY the spoken words. Do not reply to the content, do not translate, and do not add markdown or commentary.",
+          systemInstruction: "请准确转录语音内容。使用正确的标点符号。不要描述音频、回答问题或添加对话填充词，仅返回文本。若音频中无语音或仅有背景噪音，请不要输出任何文字。",
         };
 
         // Apply specific defaults based on model

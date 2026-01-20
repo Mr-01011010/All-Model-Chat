@@ -65,10 +65,9 @@ export const useChatInputLogic = (props: ChatInputProps) => {
         onTranscribeAudio,
         setInputText: inputState.setInputText,
         adjustTextareaHeight: inputState.adjustTextareaHeight,
-        textareaRef: inputState.textareaRef,
         isAudioCompressionEnabled: appSettings.isAudioCompressionEnabled,
         isSystemAudioRecordingEnabled: appSettings.isSystemAudioRecordingEnabled,
-        customShortcuts: appSettings.customShortcuts,
+        textareaRef: inputState.textareaRef,
     });
 
     // 7. Slash Commands
@@ -158,6 +157,7 @@ export const useChatInputLogic = (props: ChatInputProps) => {
         isAddingById: inputState.isAddingById,
         justInitiatedFileOpRef: inputState.justInitiatedFileOpRef,
         isWaitingForUpload: inputState.isWaitingForUpload,
+        setIsWaitingForUpload: inputState.setIsWaitingForUpload,
         selectedFiles: props.selectedFiles,
         clearCurrentDraft: inputState.clearCurrentDraft,
         inputText: inputState.inputText,

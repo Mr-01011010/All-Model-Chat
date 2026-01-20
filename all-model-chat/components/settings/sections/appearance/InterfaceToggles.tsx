@@ -8,8 +8,6 @@ interface InterfaceTogglesProps {
   setIsStreamingEnabled: (value: boolean) => void;
   isAutoTitleEnabled: boolean;
   setIsAutoTitleEnabled: (value: boolean) => void;
-  showWelcomeSuggestions: boolean;
-  setShowWelcomeSuggestions: (value: boolean) => void;
   isSuggestionsEnabled: boolean;
   setIsSuggestionsEnabled: (value: boolean) => void;
   isAutoSendOnSuggestionClick: boolean;
@@ -28,19 +26,22 @@ interface InterfaceTogglesProps {
   setIsGraphvizRenderingEnabled: (value: boolean) => void;
   isAudioCompressionEnabled: boolean;
   setIsAudioCompressionEnabled: (value: boolean) => void;
-  isSystemAudioRecordingEnabled: boolean;
-  setIsSystemAudioRecordingEnabled: (value: boolean) => void;
   isPasteRichTextAsMarkdownEnabled: boolean;
   setIsPasteRichTextAsMarkdownEnabled: (value: boolean) => void;
   isPasteAsTextFileEnabled: boolean;
   setIsPasteAsTextFileEnabled: (value: boolean) => void;
+  isSystemAudioRecordingEnabled: boolean;
+  setIsSystemAudioRecordingEnabled: (value: boolean) => void;
+  isRawModeEnabled: boolean;
+  setIsRawModeEnabled: (value: boolean) => void;
+  hideThinkingInContext: boolean;
+  setHideThinkingInContext: (value: boolean) => void;
   t: (key: keyof typeof translations) => string;
 }
 
 export const InterfaceToggles: React.FC<InterfaceTogglesProps> = ({
   isStreamingEnabled, setIsStreamingEnabled,
   isAutoTitleEnabled, setIsAutoTitleEnabled,
-  showWelcomeSuggestions, setShowWelcomeSuggestions,
   isSuggestionsEnabled, setIsSuggestionsEnabled,
   isAutoSendOnSuggestionClick, setIsAutoSendOnSuggestionClick,
   isAutoScrollOnSendEnabled, setIsAutoScrollOnSendEnabled,
@@ -50,9 +51,11 @@ export const InterfaceToggles: React.FC<InterfaceTogglesProps> = ({
   isMermaidRenderingEnabled, setIsMermaidRenderingEnabled,
   isGraphvizRenderingEnabled, setIsGraphvizRenderingEnabled,
   isAudioCompressionEnabled, setIsAudioCompressionEnabled,
-  isSystemAudioRecordingEnabled, setIsSystemAudioRecordingEnabled,
   isPasteRichTextAsMarkdownEnabled, setIsPasteRichTextAsMarkdownEnabled,
   isPasteAsTextFileEnabled, setIsPasteAsTextFileEnabled,
+  isSystemAudioRecordingEnabled, setIsSystemAudioRecordingEnabled,
+  isRawModeEnabled, setIsRawModeEnabled,
+  hideThinkingInContext, setHideThinkingInContext,
   t,
 }) => {
   return (
@@ -62,12 +65,13 @@ export const InterfaceToggles: React.FC<InterfaceTogglesProps> = ({
         </label>
         <div className="grid grid-cols-1 gap-1">
             <ToggleItem label={t('headerStream')} checked={isStreamingEnabled} onChange={setIsStreamingEnabled} />
+            <ToggleItem label={t('settings_rawMode_label')} checked={isRawModeEnabled} onChange={setIsRawModeEnabled} tooltip={t('settings_rawMode_tooltip')} />
+            <ToggleItem label={t('settings_hideThinkingInContext_label')} checked={hideThinkingInContext} onChange={setHideThinkingInContext} tooltip={t('settings_hideThinkingInContext_tooltip')} />
             <ToggleItem label={t('settings_pasteRichTextAsMarkdown_label')} checked={isPasteRichTextAsMarkdownEnabled} onChange={setIsPasteRichTextAsMarkdownEnabled} tooltip={t('settings_pasteRichTextAsMarkdown_tooltip')} />
             <ToggleItem label={t('settings_pasteAsTextFile_label')} checked={isPasteAsTextFileEnabled} onChange={setIsPasteAsTextFileEnabled} tooltip={t('settings_pasteAsTextFile_tooltip')} />
+            <ToggleItem label={t('settings_systemAudioRecording_label')} checked={isSystemAudioRecordingEnabled} onChange={setIsSystemAudioRecordingEnabled} tooltip={t('settings_systemAudioRecording_tooltip')} />
             
             <ToggleItem label={t('isAutoTitleEnabled')} checked={isAutoTitleEnabled} onChange={setIsAutoTitleEnabled} />
-            
-            <ToggleItem label={t('settings_showWelcomeSuggestions_label')} checked={showWelcomeSuggestions} onChange={setShowWelcomeSuggestions} tooltip={t('settings_showWelcomeSuggestions_tooltip')} />
 
             <ToggleItem label={t('settings_enableSuggestions_label')} checked={isSuggestionsEnabled} onChange={setIsSuggestionsEnabled} tooltip={t('settings_enableSuggestions_tooltip')} />
             
@@ -84,7 +88,6 @@ export const InterfaceToggles: React.FC<InterfaceTogglesProps> = ({
             <ToggleItem label={t('settings_enableMermaidRendering_label')} checked={isMermaidRenderingEnabled} onChange={setIsMermaidRenderingEnabled} tooltip={t('settings_enableMermaidRendering_tooltip')} />
             <ToggleItem label={t('settings_enableGraphvizRendering_label')} checked={isGraphvizRenderingEnabled} onChange={setIsGraphvizRenderingEnabled} tooltip={t('settings_enableGraphvizRendering_tooltip')} />
             <ToggleItem label={t('settings_audioCompression_label')} checked={isAudioCompressionEnabled} onChange={setIsAudioCompressionEnabled} tooltip={t('settings_audioCompression_tooltip')} />
-            <ToggleItem label={t('settings_systemAudioRecording_label')} checked={isSystemAudioRecordingEnabled} onChange={setIsSystemAudioRecordingEnabled} tooltip={t('settings_systemAudioRecording_tooltip')} />
         </div>
     </div>
   );

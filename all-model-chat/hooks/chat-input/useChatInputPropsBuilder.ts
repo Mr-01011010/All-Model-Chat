@@ -130,7 +130,7 @@ export const useChatInputPropsBuilder = (
     const extendedActionsProps = {
         ...areaProps.actionsProps,
         isLiveMuted: liveAPI.isMuted,
-        onToggleLiveMute: liveAPI.toggleMute,
+        onToggleLiveMute: liveAPI.toggleMute
     };
     
     // Override the actionsProps in areaProps
@@ -150,6 +150,7 @@ export const useChatInputPropsBuilder = (
         isLoading: props.isLoading,
         t: props.t,
         editingFile: modalsState.editingFile,
+        isSystemAudioRecordingEnabled: props.appSettings.isSystemAudioRecordingEnabled,
     };
 
     const fileModalsProps = {
@@ -176,6 +177,12 @@ export const useChatInputPropsBuilder = (
             inputImages: handlers.inputImages
         }
     };
+    
+    // Add BBox toggle to suggestions props if available
+    if (areaProps.suggestionsProps && props.onToggleBBox) {
+        (areaProps.suggestionsProps as any).onToggleBBox = props.onToggleBBox;
+        (areaProps.suggestionsProps as any).isBBoxModeActive = props.isBBoxModeActive;
+    }
 
     return {
         areaProps,

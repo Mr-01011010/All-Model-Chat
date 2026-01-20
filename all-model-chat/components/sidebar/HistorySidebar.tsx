@@ -36,7 +36,22 @@ export interface HistorySidebarProps {
   t: (key: keyof typeof translations, fallback?: string) => string;
   language: 'en' | 'zh';
   themeId: string;
+  newChatShortcut?: string;
 }
+
+const MiniSidebarButton = ({ onClick, icon: Icon, title }: { onClick: () => void, icon: React.ElementType, title: string }) => (
+    <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        className="p-2.5 rounded-xl text-[var(--theme-icon-history)] hover:bg-[var(--theme-bg-tertiary)] hover:text-[var(--theme-text-primary)] transition-colors focus:outline-none focus:visible:ring-2 focus:visible:ring-[var(--theme-border-focus)]"
+        title={title}
+        aria-label={title}
+    >
+        <Icon size={20} strokeWidth={2} />
+    </button>
+);
 
 export const HistorySidebar: React.FC<HistorySidebarProps> = (props) => {
   const { 
@@ -44,7 +59,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = (props) => {
     generatingTitleSessionIds, onOpenExportModal, onAddNewGroup,
     onDeleteGroup, onToggleGroupExpansion, themeId, t, 
     onNewChat, onDeleteSession, onTogglePinSession, onDuplicateSession, 
-    onOpenSettingsModal
+    onOpenSettingsModal, newChatShortcut
   } = props;
 
   const {
@@ -83,20 +98,6 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = (props) => {
     handleRenameConfirm, handleRenameKeyDown, setEditingItem, toggleMenu, setActiveMenu, handleDragStart, t
   };
 
-  const MiniSidebarButton = ({ onClick, icon: Icon, title }: { onClick: () => void, icon: React.ElementType, title: string }) => (
-      <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-          className="p-2.5 rounded-xl text-[var(--theme-icon-history)] hover:bg-[var(--theme-bg-tertiary)] hover:text-[var(--theme-text-primary)] transition-colors focus:outline-none focus:visible:ring-2 focus:visible:ring-[var(--theme-border-focus)]"
-          title={title}
-          aria-label={title}
-      >
-          <Icon size={20} strokeWidth={2} />
-      </button>
-  );
-
   return (
     <aside
       className={`h-full flex flex-col ${themeId === 'onyx' ? 'bg-[var(--theme-bg-primary)]' : 'bg-[var(--theme-bg-secondary)]'} flex-shrink-0
@@ -119,6 +120,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = (props) => {
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 t={t}
+                newChatShortcut={newChatShortcut}
             />
             <div 
                 className="flex-grow overflow-y-auto custom-scrollbar p-2"
@@ -192,7 +194,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = (props) => {
               
               <div className="w-8 h-px bg-[var(--theme-border-primary)] my-1"></div>
               
-              <MiniSidebarButton onClick={onNewChat} icon={IconNewChat} title={t('newChat')} />
+              <MiniSidebarButton onClick={onNewChat} icon={IconNewChat} title={`${t('newChat')} ${newChatShortcut ? `(${newChatShortcut})` : ''}`} />
               <MiniSidebarButton onClick={handleMiniSearchClick} icon={Search} title={t('history_search_button')} />
               
               <div className="mt-auto">
