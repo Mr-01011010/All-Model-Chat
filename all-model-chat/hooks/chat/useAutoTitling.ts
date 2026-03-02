@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect } from 'react';
 import { AppSettings, SavedChatSession } from '../../types';
 import { getKeyForRequest, logService, generateSessionTitle } from '../../utils/appUtils';
@@ -8,7 +7,7 @@ type SessionsUpdater = (updater: (prev: SavedChatSession[]) => SavedChatSession[
 
 interface AutoTitlingProps {
     appSettings: AppSettings;
-    savedSessions: SavedChatSession[];
+    activeChat?: SavedChatSession;
     updateAndPersistSessions: SessionsUpdater;
     language: 'en' | 'zh';
     generatingTitleSessionIds: Set<string>;
@@ -18,7 +17,7 @@ interface AutoTitlingProps {
 
 export const useAutoTitling = ({
     appSettings,
-    savedSessions,
+    activeChat,
     updateAndPersistSessions,
     language,
     generatingTitleSessionIds,
@@ -94,34 +93,36 @@ export const useAutoTitling = ({
     }, [appSettings, updateAndPersistSessions, language, setGeneratingTitleSessionIds, sessionKeyMapRef]);
 
     useEffect(() => {
-        if (!appSettings.isAutoTitleEnabled) return;
+        if (!appSettings.isAutoTitleEnabled || !activeChat) return;
 
-        const candidates = savedSessions.filter(session => {
-            // Only title "New Chat" sessions
-            if (session.title !== 'New Chat') return false;
-            
-            // Skip if already generating
-            if (generatingTitleSessionIds.has(session.id)) return false;
-            
-            // Need at least user prompt and model response
-            if (session.messages.length < 2) return false;
-            
-            const firstMsg = session.messages[0];
-            const secondMsg = session.messages[1];
+        const session = activeChat;
 
-            // Basic structure check
-            if (firstMsg.role !== 'user' || secondMsg.role !== 'model') return false;
+        // Check if title is generic or a placeholder
+        // 1. Is it 'New Chat'?
+        const isNewChat = session.title === 'New Chat';
+        // 2. Is it a placeholder derived from the first message?
+        const isPlaceholder = session.title === generateSessionTitle(session.messages);
 
-            // Wait for the first model message to be complete
-            if (secondMsg.isLoading || secondMsg.stoppedByUser) return false;
+        // If neither, assume user renamed it or it's already titled properly
+        if (!isNewChat && !isPlaceholder) return;
+        
+        // Skip if already generating
+        if (generatingTitleSessionIds.has(session.id)) return;
+        
+        // Need at least user prompt and model response
+        if (session.messages.length < 2) return;
+        
+        const firstMsg = session.messages[0];
+        const secondMsg = session.messages[1];
 
-            return true;
-        });
+        // Basic structure check
+        if (firstMsg.role !== 'user' || secondMsg.role !== 'model') return;
 
-        candidates.forEach(session => {
-            generateTitleForSession(session);
-        });
+        // Wait for the first model message to be complete
+        if (secondMsg.isLoading || secondMsg.stoppedByUser) return;
 
-    }, [savedSessions, appSettings.isAutoTitleEnabled, generatingTitleSessionIds, generateTitleForSession]);
+        generateTitleForSession(session);
+
+    }, [activeChat, appSettings.isAutoTitleEnabled, generatingTitleSessionIds, generateTitleForSession]);
 
 };

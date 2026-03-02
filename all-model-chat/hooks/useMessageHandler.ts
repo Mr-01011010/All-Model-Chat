@@ -2,8 +2,8 @@
 import React, { Dispatch, SetStateAction } from 'react';
 import { AppSettings, ChatMessage, UploadedFile, ChatSettings as IndividualChatSettings, SavedChatSession, InputCommand } from '../types';
 import { useMessageSender } from './useMessageSender';
-import { useMessageActions } from './useMessageActions';
-import { useTextToSpeechHandler } from './useTextToSpeechHandler';
+import { useMessageActions } from './chat/messages/useMessageActions';
+import { useTextToSpeechHandler } from './chat/messages/useTextToSpeechHandler';
 
 type CommandedInputSetter = Dispatch<SetStateAction<InputCommand | null>>;
 type SessionsUpdater = (updater: (prev: SavedChatSession[]) => SavedChatSession[]) => void;
@@ -33,6 +33,7 @@ interface MessageHandlerProps {
     scrollContainerRef: React.RefObject<HTMLDivElement>;
     sessionKeyMapRef: React.MutableRefObject<Map<string, string>>;
     language: 'en' | 'zh';
+    setSessionLoading: (sessionId: string, isLoading: boolean) => void; 
 }
 
 export const useMessageHandler = (props: MessageHandlerProps) => {
@@ -49,7 +50,8 @@ export const useMessageHandler = (props: MessageHandlerProps) => {
         setAppFileError,
         updateAndPersistSessions,
         userScrolledUp,
-        setLoadingSessionIds
+        setLoadingSessionIds,
+        setSessionLoading
     } = props;
     
     const { handleSendMessage, handleGenerateCanvas } = useMessageSender(props);
@@ -69,6 +71,7 @@ export const useMessageHandler = (props: MessageHandlerProps) => {
         userScrolledUp,
         handleSendMessage,
         setLoadingSessionIds,
+        setSessionLoading
     });
     
     const { handleTextToSpeech, handleQuickTTS } = useTextToSpeechHandler(props);

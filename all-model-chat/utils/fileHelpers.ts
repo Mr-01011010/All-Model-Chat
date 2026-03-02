@@ -1,20 +1,46 @@
 
-import { MIME_TO_EXTENSION_MAP } from '../constants/fileConstants';
 
-export const fileToBase64 = (file: File): Promise<string> => {
+import { MIME_TO_EXTENSION_MAP, SUPPORTED_TEXT_MIME_TYPES, TEXT_BASED_EXTENSIONS } from '../constants/fileConstants';
+import { UploadedFile } from '../types';
+
+export const isTextFile = (file: File | UploadedFile | { name: string; type: string }): boolean => {
+    const fileExtension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+    return (
+        SUPPORTED_TEXT_MIME_TYPES.includes(file.type) || 
+        TEXT_BASED_EXTENSIONS.includes(fileExtension) || 
+        file.type === 'text/plain'
+    );
+};
+
+export const decodeBase64ToArrayBuffer = (base64: string): Uint8Array => {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+};
+
+/**
+ * Reads a Blob or File and returns it as a Base64 string (without the data URI prefix).
+ * Used primarily just before sending data to the API.
+ */
+export const blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
             const result = reader.result as string;
+            // Strip the data:mime/type;base64, prefix
             const base64Data = result.split(',')[1];
             if (base64Data) {
                 resolve(base64Data);
             } else {
-                reject(new Error("Failed to extract base64 data from file."));
+                reject(new Error("Failed to extract base64 data from blob."));
             }
         };
         reader.onerror = error => reject(error);
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(blob);
     });
 };
 
@@ -27,17 +53,12 @@ export const fileToString = (file: File): Promise<string> => {
     });
 };
 
-export const fileToBlobUrl = (file: File): string => {
+export const fileToBlobUrl = (file: File | Blob): string => {
     return URL.createObjectURL(file);
 };
 
 export const base64ToBlob = (base64: string, mimeType: string): Blob => {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
+    const byteArray = decodeBase64ToArrayBuffer(base64);
     return new Blob([byteArray], { type: mimeType });
 };
 
@@ -65,4 +86,12 @@ export const formatFileSize = (sizeInBytes: number): string => {
     if (sizeInKb < 1024) return `${sizeInKb.toFixed(1)} KB`;
     const sizeInMb = sizeInKb / 1024;
     return `${sizeInMb.toFixed(2)} MB`;
+};
+
+export const cleanupFilePreviewUrls = (files: { dataUrl?: string }[] | undefined) => {
+    files?.forEach(f => {
+         if (f.dataUrl && f.dataUrl.startsWith('blob:')) {
+             URL.revokeObjectURL(f.dataUrl);
+         }
+    });
 };

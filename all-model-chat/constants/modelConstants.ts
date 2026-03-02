@@ -1,15 +1,17 @@
 
+
 import { ModelOption } from '../types';
 
 export const DEFAULT_MODEL_ID = 'gemini-3-flash-preview'; 
 
 export const TAB_CYCLE_MODELS: string[] = [
     'gemini-3-flash-preview',
-    'gemini-3-pro-preview',
+    'gemini-3.1-pro-preview',
 ];
 
 export const INITIAL_PINNED_MODELS: string[] = [
     'gemini-3-flash-preview',
+    'gemini-3.1-pro-preview',
     'gemini-3-pro-preview',
     'gemini-2.5-pro',
     'gemini-2.5-flash-preview-09-2025',
@@ -21,6 +23,8 @@ export const INITIAL_PINNED_MODELS: string[] = [
 export const GEMINI_3_RO_MODELS: string[] = [
     'gemini-3-pro-preview', 
     'models/gemini-3-pro-preview',
+    'gemini-3.1-pro-preview',
+    'models/gemini-3.1-pro-preview',
     'gemini-3-flash-preview',
     'models/gemini-3-flash-preview',
 ];
@@ -28,6 +32,8 @@ export const GEMINI_3_RO_MODELS: string[] = [
 export const MODELS_MANDATORY_THINKING = [
     'gemini-3-pro-preview',
     'models/gemini-3-pro-preview',
+    'gemini-3.1-pro-preview',
+    'models/gemini-3.1-pro-preview',
     'gemini-3-flash-preview',
     'models/gemini-3-flash-preview',
     'gemini-2.5-pro',
@@ -36,6 +42,7 @@ export const MODELS_MANDATORY_THINKING = [
 export const MODELS_SUPPORTING_RAW_MODE = [
     'gemini-3-flash-preview',
     'gemini-3-pro-preview',
+    'gemini-3.1-pro-preview',
     'gemini-2.5-pro',
     'gemini-2.5-flash-preview-09-2025',
     'gemini-2.5-flash-lite-preview-09-2025',
@@ -55,6 +62,8 @@ export const THINKING_BUDGET_RANGES: { [key: string]: { min: number; max: number
     'gemini-2.5-pro': { min: 128, max: 32768 },
     'gemini-3-pro-preview': { min: 128, max: 32768 }, 
     'models/gemini-3-pro-preview': { min: 128, max: 32768 },
+    'gemini-3.1-pro-preview': { min: 128, max: 32768 },
+    'models/gemini-3.1-pro-preview': { min: 128, max: 32768 },
     'gemini-3-flash-preview': { min: 128, max: 32768 },
     'models/gemini-3-flash-preview': { min: 128, max: 32768 },
     'gemini-2.5-flash-lite-preview-09-2025': { min: 512, max: 24576 },
@@ -86,41 +95,42 @@ export const STATIC_IMAGEN_MODELS: ModelOption[] = [
 export const AVAILABLE_TRANSCRIPTION_MODELS: { id: string; name: string }[] = [
     { id: 'gemini-3-flash-preview', name: 'Gemini 3.0 Flash (Fastest)' },
     { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro' },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro' },
     { id: 'gemini-2.5-flash-preview-09-2025', name: 'Gemini 2.5 Flash' },
     { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Higher Quality)' },
     { id: 'gemini-2.5-flash-lite-preview-09-2025', name: 'Gemini 2.5 Flash Lite' },
     { id: 'gemini-2.5-flash-native-audio-preview-12-2025', name: 'Gemini 2.5 Flash Native Audio' },
 ];
 
-export const AVAILABLE_TTS_VOICES: { id: string; name: string }[] = [
-    { id: 'Zephyr', name: 'Zephyr (Bright)' },
-    { id: 'Puck', name: 'Puck (Upbeat)' },
-    { id: 'Charon', name: 'Charon (Informative)' },
-    { id: 'Kore', name: 'Kore (Firm)' },
-    { id: 'Fenrir', name: 'Fenrir (Excitable)' },
-    { id: 'Leda', name: 'Leda (Youthful)' },
-    { id: 'Orus', name: 'Orus (Firm)' },
-    { id: 'Aoede', name: 'Aoede (Breezy)' },
-    { id: 'Callirrhoe', name: 'Callirrhoe (Easy-going)' },
-    { id: 'Autonoe', name: 'Autonoe (Bright)' },
-    { id: 'Enceladus', name: 'Enceladus (Breathy)' },
-    { id: 'Iapetus', name: 'Iapetus (Clear)' },
-    { id: 'Umbriel', name: 'Umbriel (Easy-going)' },
-    { id: 'Algieba', name: 'Algieba (Smooth)' },
-    { id: 'Despina', name: 'Despina (Smooth)' },
-    { id: 'Erinome', name: 'Erinome (Clear)' },
-    { id: 'Algenib', name: 'Algenib (Gravelly)' },
-    { id: 'Rasalgethi', name: 'Rasalgethi (Informative)' },
-    { id: 'Laomedeia', name: 'Laomedeia (Upbeat)' },
-    { id: 'Achernar', name: 'Achernar (Soft)' },
-    { id: 'Alnilam', name: 'Alnilam (Firm)' },
-    { id: 'Schedar', name: 'Schedar (Even)' },
-    { id: 'Gacrux', name: 'Gacrux (Mature)' },
-    { id: 'Pulcherrima', name: 'Pulcherrima (Forward)' },
-    { id: 'Achird', name: 'Achird (Friendly)' },
-    { id: 'Zubenelgenubi', name: 'Zubenelgenubi (Casual)' },
-    { id: 'Vindemiatrix', name: 'Vindemiatrix (Gentle)' },
-    { id: 'Sadachbia', name: 'Sadachbia (Lively)' },
-    { id: 'Sadaltager', name: 'Sadaltager (Knowledgeable)' },
-    { id: 'Sulafat', name: 'Sulafat (Warm)' },
+export const AVAILABLE_TTS_VOICES: { id: string; name: string; styleKey: string }[] = [
+    { id: 'Zephyr', name: 'Zephyr', styleKey: 'tts_style_bright' },
+    { id: 'Puck', name: 'Puck', styleKey: 'tts_style_upbeat' },
+    { id: 'Charon', name: 'Charon', styleKey: 'tts_style_informative' },
+    { id: 'Kore', name: 'Kore', styleKey: 'tts_style_firm' },
+    { id: 'Fenrir', name: 'Fenrir', styleKey: 'tts_style_excitable' },
+    { id: 'Leda', name: 'Leda', styleKey: 'tts_style_youthful' },
+    { id: 'Orus', name: 'Orus', styleKey: 'tts_style_firm' },
+    { id: 'Aoede', name: 'Aoede', styleKey: 'tts_style_breezy' },
+    { id: 'Callirrhoe', name: 'Callirrhoe', styleKey: 'tts_style_easy_going' },
+    { id: 'Autonoe', name: 'Autonoe', styleKey: 'tts_style_bright' },
+    { id: 'Enceladus', name: 'Enceladus', styleKey: 'tts_style_breathy' },
+    { id: 'Iapetus', name: 'Iapetus', styleKey: 'tts_style_clear' },
+    { id: 'Umbriel', name: 'Umbriel', styleKey: 'tts_style_easy_going' },
+    { id: 'Algieba', name: 'Algieba', styleKey: 'tts_style_smooth' },
+    { id: 'Despina', name: 'Despina', styleKey: 'tts_style_smooth' },
+    { id: 'Erinome', name: 'Erinome', styleKey: 'tts_style_clear' },
+    { id: 'Algenib', name: 'Algenib', styleKey: 'tts_style_gravelly' },
+    { id: 'Rasalgethi', name: 'Rasalgethi', styleKey: 'tts_style_informative' },
+    { id: 'Laomedeia', name: 'Laomedeia', styleKey: 'tts_style_upbeat' },
+    { id: 'Achernar', name: 'Achernar', styleKey: 'tts_style_soft' },
+    { id: 'Alnilam', name: 'Alnilam', styleKey: 'tts_style_firm' },
+    { id: 'Schedar', name: 'Schedar', styleKey: 'tts_style_even' },
+    { id: 'Gacrux', name: 'Gacrux', styleKey: 'tts_style_mature' },
+    { id: 'Pulcherrima', name: 'Pulcherrima', styleKey: 'tts_style_forward' },
+    { id: 'Achird', name: 'Achird', styleKey: 'tts_style_friendly' },
+    { id: 'Zubenelgenubi', name: 'Zubenelgenubi', styleKey: 'tts_style_casual' },
+    { id: 'Vindemiatrix', name: 'Vindemiatrix', styleKey: 'tts_style_gentle' },
+    { id: 'Sadachbia', name: 'Sadachbia', styleKey: 'tts_style_lively' },
+    { id: 'Sadaltager', name: 'Sadaltager', styleKey: 'tts_style_knowledgeable' },
+    { id: 'Sulafat', name: 'Sulafat', styleKey: 'tts_style_warm' },
 ];

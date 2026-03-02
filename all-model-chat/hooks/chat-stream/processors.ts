@@ -1,92 +1,73 @@
 import { ChatMessage, UploadedFile, ChatSettings } from '../../types';
 import { Part, UsageMetadata } from '@google/genai';
-import { generateUniqueId, base64ToBlobUrl, getExtensionFromMimeType, getTranslator } from '../../utils/appUtils';
-import { isToolMessage } from './utils';
-import { SUPPORTED_GENERATED_MIME_TYPES } from './constants';
+import { generateUniqueId, calculateTokenStats, createMessage, createUploadedFileFromBase64, getTranslator } from '../../utils/appUtils';
+import { SUPPORTED_GENERATED_MIME_TYPES } from '../../constants/fileConstants';
 
-export const updateMessagesWithPart = (
+export const appendApiPart = (parts: any[] = [], newPart: any) => {
+    const newParts = [...parts];
+    if (newPart.text) {
+        const lastPart = newParts[newParts.length - 1];
+        if (lastPart && typeof lastPart.text === 'string' && !lastPart.thought) {
+            newParts[newParts.length - 1] = { ...lastPart, text: lastPart.text + newPart.text };
+            return newParts;
+        }
+    }
+    
+    // --- MEMORY OPTIMIZATION ---
+    // 剔除巨大的 Base64 数据以防内存泄漏。UI 渲染依赖的是已生成的 UploadedFile (Blob URL)，
+    // 保留原始 apiParts 中的 base64 会导致内存翻倍且无法回收。
+    const partToStore = { ...newPart };
+    if (partToStore.inlineData && partToStore.inlineData.data) {
+        partToStore.inlineData = {
+            ...partToStore.inlineData,
+            data: "" // 清空 Base64 数据，释放内存
+        };
+    }
+    
+    newParts.push(partToStore);
+    return newParts;
+};
+
+/**
+ * Core logic to mutate the messages array with a new part.
+ * Used by both single and batch updaters to avoid code duplication.
+ * Mutates the `messages` array in place.
+ */
+const applyPartToMessages = (
     messages: ChatMessage[],
     part: Part,
     generationStartTime: Date,
     newModelMessageIds: Set<string>,
     firstContentPartTime: Date | null
-): ChatMessage[] => {
+) => {
     const anyPart = part as any;
     const now = Date.now();
-    const newMessages = [...messages];
+    
+    let lastMessageIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.isLoading && msg.role === 'model' && msg.generationStartTime && msg.generationStartTime.getTime() === generationStartTime.getTime()) {
+            lastMessageIndex = i;
+            break;
+        }
+    }
 
-    // Check if this part triggered the "First Content" logic in the hook
-    // We assume the hook passes a valid firstContentPartTime if it was set
-    const isFirstContentPart = !!firstContentPartTime && (now - firstContentPartTime.getTime() < 100); // Heuristic: very recent
+    if (lastMessageIndex === -1) return;
+    let lastMessage = messages[lastMessageIndex];
 
     // Update thinking time on the first content part if applicable
-    if (firstContentPartTime) {
+    if (firstContentPartTime && lastMessage.thinkingTimeMs === undefined) {
         const thinkingTime = (firstContentPartTime.getTime() - generationStartTime.getTime());
-        // Find the loading message for this generation to update its thinking time
-        for (let i = newMessages.length - 1; i >= 0; i--) {
-            const msg = newMessages[i];
-            if (msg.isLoading && msg.role === 'model' && msg.generationStartTime && msg.generationStartTime.getTime() === generationStartTime.getTime()) {
-                // Only set if not already set
-                if (msg.thinkingTimeMs === undefined) {
-                    newMessages[i] = { ...msg, thinkingTimeMs: thinkingTime };
-                }
-                break;
-            }
-        }
+        lastMessage = { ...lastMessage, thinkingTimeMs: thinkingTime };
+        messages[lastMessageIndex] = lastMessage;
     }
 
-    let lastMessage = newMessages.length > 0 ? newMessages[newMessages.length - 1] : null;
-    const lastMessageIndex = newMessages.length - 1;
-
-    const createNewMessage = (content: string): ChatMessage => {
-        const id = generateUniqueId();
-        newModelMessageIds.add(id);
-        return { 
-            id, 
-            role: 'model', 
-            content, 
-            timestamp: new Date(), 
-            isLoading: true, 
-            generationStartTime: generationStartTime,
-            firstTokenTimeMs: now - generationStartTime.getTime() // TTFT for new messages
-        };
-    };
-
-    // Update existing message if possible, and capture TTFT if missing
-    if (lastMessage && lastMessage.role === 'model' && lastMessage.isLoading && !isToolMessage(lastMessage)) {
-        const updates: Partial<ChatMessage> = {};
-        if (anyPart.text) {
-            updates.content = lastMessage.content + anyPart.text;
-        }
-        if (lastMessage.firstTokenTimeMs === undefined) {
-            updates.firstTokenTimeMs = now - generationStartTime.getTime();
-        }
-        
-        if (anyPart.text || Object.keys(updates).length > 0) {
-            newMessages[lastMessageIndex] = { ...lastMessage, ...updates };
-        }
-    } else if (anyPart.text) {
-        newMessages.push(createNewMessage(anyPart.text));
+    if (lastMessage.firstTokenTimeMs === undefined) {
+        lastMessage = { ...lastMessage, firstTokenTimeMs: now - generationStartTime.getTime() };
+        messages[lastMessageIndex] = lastMessage;
     }
 
-    // Handle other parts
-    if (anyPart.executableCode) {
-        const codePart = anyPart.executableCode as { language: string, code: string };
-        const toolContent = `\`\`\`${codePart.language.toLowerCase() || 'python'}\n${codePart.code}\n\`\`\``;
-        newMessages.push(createNewMessage(toolContent));
-    } else if (anyPart.codeExecutionResult) {
-        const resultPart = anyPart.codeExecutionResult as { outcome: string, output?: string };
-        const escapeHtml = (unsafe: string) => {
-            if (typeof unsafe !== 'string') return '';
-            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-        };
-        let toolContent = `<div class="tool-result outcome-${resultPart.outcome.toLowerCase()}"><strong>Execution Result (${resultPart.outcome}):</strong>`;
-        if (resultPart.output) {
-            toolContent += `<pre><code class="language-text">${escapeHtml(resultPart.output)}</code></pre>`;
-        }
-        toolContent += '</div>';
-        newMessages.push(createNewMessage(toolContent));
-    } else if (anyPart.inlineData) {
+    if (anyPart.inlineData) {
         const { mimeType, data } = anyPart.inlineData;
         
         const isSupportedFile = 
@@ -96,50 +77,71 @@ export const updateMessagesWithPart = (
             SUPPORTED_GENERATED_MIME_TYPES.has(mimeType);
 
         if (isSupportedFile) {
-            const dataUrl = base64ToBlobUrl(data, mimeType);
-            
-            let fileName = 'Generated File';
-            const ext = getExtensionFromMimeType(mimeType);
-            if (ext) {
-                fileName = `generated_file_${generateUniqueId().slice(-4)}${ext}`;
-            } else if (mimeType.startsWith('image/')) {
-                fileName = `generated-image-${generateUniqueId().slice(-4)}.png`;
+            let baseName = 'generated-file';
+            if (mimeType.startsWith('image/')) {
+                baseName = `generated-plot-${generateUniqueId().slice(-4)}`;
             }
 
-            const newFile: UploadedFile = {
-                id: generateUniqueId(),
-                name: fileName,
-                type: mimeType,
-                size: data.length,
-                dataUrl: dataUrl,
-                uploadState: 'active'
+            const newFile = createUploadedFileFromBase64(data, mimeType, baseName);
+            messages[lastMessageIndex] = { 
+                ...lastMessage, 
+                files: [...(lastMessage.files || []), newFile]
             };
-            
-            // Refetch last message as it might have changed in previous steps
-            const currentLastMessage = newMessages[newMessages.length - 1];
-            if (currentLastMessage && currentLastMessage.role === 'model' && currentLastMessage.isLoading) {
-                newMessages[newMessages.length - 1] = { ...currentLastMessage, files: [...(currentLastMessage.files || []), newFile] };
-            } else {
-                const newMessage = createNewMessage('');
-                newMessage.files = [newFile];
-                newMessages.push(newMessage);
-            }
         }
     }
 
     // Capture thought signatures
     const thoughtSignature = anyPart.thoughtSignature || anyPart.thought_signature;
     if (thoughtSignature) {
-        const currentLastMsg = newMessages[newMessages.length - 1];
-        if (currentLastMsg && currentLastMsg.role === 'model' && currentLastMsg.isLoading) {
-            const newSignatures = [...(currentLastMsg.thoughtSignatures || [])];
-            if (!newSignatures.includes(thoughtSignature)) {
-                newSignatures.push(thoughtSignature);
-                newMessages[newMessages.length - 1] = { ...currentLastMsg, thoughtSignatures: newSignatures };
-            }
+        const newSignatures = [...(lastMessage.thoughtSignatures || [])];
+        if (!newSignatures.includes(thoughtSignature)) {
+            newSignatures.push(thoughtSignature);
+            messages[lastMessageIndex] = { ...messages[lastMessageIndex], thoughtSignatures: newSignatures };
+        }
+    }
+};
+
+/**
+ * Apply thought text chunk to the latest message.
+ * Mutates `messages` array in place.
+ */
+const applyThoughtToMessages = (
+    messages: ChatMessage[],
+    thoughtChunk: string,
+    generationStartTime: Date
+) => {
+    const now = Date.now();
+    
+    let lastMessageIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.isLoading && msg.role === 'model' && msg.generationStartTime && msg.generationStartTime.getTime() === generationStartTime.getTime()) {
+            lastMessageIndex = i;
+            break;
         }
     }
 
+    if (lastMessageIndex !== -1) {
+        const lastMessage = messages[lastMessageIndex];
+        const updates: Partial<ChatMessage> = {
+            thoughts: (lastMessage.thoughts || '') + thoughtChunk,
+        };
+        if (lastMessage.firstTokenTimeMs === undefined) {
+            updates.firstTokenTimeMs = now - generationStartTime.getTime();
+        }
+        messages[lastMessageIndex] = { ...lastMessage, ...updates };
+    }
+};
+
+export const updateMessagesWithPart = (
+    messages: ChatMessage[],
+    part: Part,
+    generationStartTime: Date,
+    newModelMessageIds: Set<string>,
+    firstContentPartTime: Date | null
+): ChatMessage[] => {
+    const newMessages = [...messages];
+    applyPartToMessages(newMessages, part, generationStartTime, newModelMessageIds, firstContentPartTime);
     return newMessages;
 };
 
@@ -148,23 +150,36 @@ export const updateMessagesWithThought = (
     thoughtChunk: string,
     generationStartTime: Date
 ): ChatMessage[] => {
-    const now = Date.now();
     const newMessages = [...messages];
-    const lastMessageIndex = newMessages.length - 1;
+    applyThoughtToMessages(newMessages, thoughtChunk, generationStartTime);
+    return newMessages;
+};
+
+/**
+ * Efficiently updates messages with a batch of parts and thoughts.
+ * Clones the array once to prevent excessive memory allocation during high-frequency streams.
+ */
+export const updateMessagesWithBatch = (
+    messages: ChatMessage[],
+    parts: Part[],
+    thoughts: string,
+    generationStartTime: Date,
+    newModelMessageIds: Set<string>,
+    firstContentPartTime: Date | null
+): ChatMessage[] => {
+    // Clone once
+    const newMessages = [...messages];
     
-    if (lastMessageIndex >= 0) {
-        const lastMessage = newMessages[lastMessageIndex];
-        // Identify message by matching start time
-        if (lastMessage.role === 'model' && lastMessage.isLoading && lastMessage.generationStartTime && lastMessage.generationStartTime.getTime() === generationStartTime.getTime()) {
-            const updates: Partial<ChatMessage> = {
-                thoughts: (lastMessage.thoughts || '') + thoughtChunk,
-            };
-            if (lastMessage.firstTokenTimeMs === undefined) {
-                updates.firstTokenTimeMs = now - generationStartTime.getTime();
-            }
-            newMessages[lastMessageIndex] = { ...lastMessage, ...updates };
-        }
+    // Apply all parts in the batch
+    for (const part of parts) {
+        applyPartToMessages(newMessages, part, generationStartTime, newModelMessageIds, firstContentPartTime);
     }
+    
+    // Apply accumulated thoughts
+    if (thoughts) {
+        applyThoughtToMessages(newMessages, thoughts, generationStartTime);
+    }
+    
     return newMessages;
 };
 
@@ -194,20 +209,12 @@ export const finalizeMessages = (
             }
             const isLastMessageOfRun = m.id === Array.from(newModelMessageIds).pop();
             
-            // Token Extraction Logic
-            const totalTokenCount = isLastMessageOfRun ? (usageMetadata?.totalTokenCount || 0) : 0;
-            const promptTokens = isLastMessageOfRun ? (usageMetadata?.promptTokenCount) : undefined;
-            let completionTokens = isLastMessageOfRun ? usageMetadata?.candidatesTokenCount : undefined;
+            // Token Extraction Logic using helper
+            const { promptTokens, completionTokens, totalTokens, thoughtTokens } = calculateTokenStats(isLastMessageOfRun ? usageMetadata : undefined);
             
-            // Fallback calculation
-            if (completionTokens === undefined && promptTokens !== undefined && totalTokenCount > 0) {
-                completionTokens = totalTokenCount - promptTokens;
+            if (isLastMessageOfRun) {
+                cumulativeTotal += totalTokens;
             }
-
-            // @ts-ignore
-            const thoughtTokens = usageMetadata?.thoughtsTokenCount;
-            
-            cumulativeTotal += totalTokenCount;
             
             const completedMessage = {
                 ...m,
@@ -218,14 +225,14 @@ export const finalizeMessages = (
                 thinkingTimeMs: thinkingTime,
                 groundingMetadata: isLastMessageOfRun ? groundingMetadata : undefined,
                 urlContextMetadata: isLastMessageOfRun ? urlContextMetadata : undefined,
-                promptTokens,
-                completionTokens,
-                totalTokens: totalTokenCount,
-                thoughtTokens, 
-                cumulativeTotalTokens: cumulativeTotal,
+                promptTokens: isLastMessageOfRun ? promptTokens : undefined,
+                completionTokens: isLastMessageOfRun ? completionTokens : undefined,
+                totalTokens: isLastMessageOfRun ? totalTokens : undefined,
+                thoughtTokens: isLastMessageOfRun ? thoughtTokens : undefined, 
+                cumulativeTotalTokens: isLastMessageOfRun ? cumulativeTotal : undefined,
             };
             
-            const isEmpty = !completedMessage.content.trim() && !completedMessage.files?.length && !completedMessage.audioSrc && !completedMessage.thoughts?.trim();
+            const isEmpty = !completedMessage.content?.trim() && !completedMessage.files?.length && !completedMessage.audioSrc && !completedMessage.thoughts?.trim();
             
             if (isEmpty && !isAborted) {
                 completedMessage.role = 'error';
@@ -241,7 +248,7 @@ export const finalizeMessages = (
     });
 
     if (!isAborted) {
-        finalMessages = finalMessages.filter(m => m.role !== 'model' || m.content.trim() !== '' || (m.files && m.files.length > 0) || m.audioSrc || (m.thoughts && m.thoughts.trim() !== ''));
+        finalMessages = finalMessages.filter(m => m.role !== 'model' || m.content?.trim() !== '' || (m.files && m.files.length > 0) || m.audioSrc || (m.thoughts && m.thoughts.trim() !== ''));
     }
 
     return { updatedMessages: finalMessages, completedMessageForNotification };

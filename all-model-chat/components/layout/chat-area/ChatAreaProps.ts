@@ -1,6 +1,5 @@
 
 import { ChatSettings, ChatMessage, UploadedFile, AppSettings, ModelOption, SideViewContent, VideoMetadata, InputCommand } from '../../../types';
-import { ThemeColors } from '../../../constants/themeConstants';
 import { translations } from '../../../utils/appUtils';
 import { MediaResolution } from '../../../types/settings';
 
@@ -33,6 +32,8 @@ export interface ChatAreaProps {
   isCanvasPromptActive: boolean;
   onToggleBBox: () => void;
   isBBoxModeActive: boolean;
+  onToggleGuide: () => void;
+  isGuideModeActive: boolean;
   isKeyLocked: boolean;
   themeId: string;
   onSetThinkingLevel: (level: 'LOW' | 'HIGH') => void;
@@ -49,7 +50,6 @@ export interface ChatAreaProps {
   onDeleteMessage: (messageId: string) => void;
   onRetryMessage: (messageId: string) => void;
   showThoughts: boolean;
-  themeColors: ThemeColors;
   baseFontSize: number;
   expandCodeBlocksByDefault: boolean;
   isMermaidRenderingEnabled: boolean;
@@ -63,9 +63,6 @@ export interface ChatAreaProps {
   ttsMessageId: string | null;
   onQuickTTS: (text: string) => Promise<string | null>;
   language: 'en' | 'zh';
-  scrollNavVisibility: { up: boolean; down: boolean };
-  onScrollToPrevTurn: () => void;
-  onScrollToNextTurn: () => void;
   
   // Edit Content
   onEditMessageContent: (message: ChatMessage) => void;
@@ -101,6 +98,8 @@ export interface ChatAreaProps {
   onToggleGoogleSearch: () => void;
   isCodeExecutionEnabled: boolean;
   onToggleCodeExecution: () => void;
+  isLocalPythonEnabled?: boolean;
+  onToggleLocalPython?: () => void;
   isUrlContextEnabled: boolean;
   onToggleUrlContext: () => void;
   isDeepSearchEnabled: boolean;

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { GoogleSpinner } from '../../../icons/GoogleSpinner';
@@ -12,6 +11,7 @@ interface ThinkingHeaderProps {
     generationStartTime?: Date;
     firstTokenTimeMs?: number;
     t: (key: any, fallback?: string) => string;
+    isExpanded: boolean;
 }
 
 export const ThinkingHeader: React.FC<ThinkingHeaderProps> = ({
@@ -20,15 +20,17 @@ export const ThinkingHeader: React.FC<ThinkingHeaderProps> = ({
     thinkingTimeMs,
     generationStartTime,
     firstTokenTimeMs,
-    t
+    t,
+    isExpanded
 }) => {
-    // Determine the effective start time for the timer (to exclude TTFT)
-    // If firstTokenTimeMs is available, we start counting from (Start + TTFT)
-    const effectiveTimerStart = (generationStartTime && firstTokenTimeMs !== undefined)
-        ? new Date(new Date(generationStartTime).getTime() + firstTokenTimeMs)
+    // Determine the effective start time for the timer
+    // If firstTokenTimeMs is available, we start counting from (Start + TTFT) to show "Pure Thinking Time" (excluding latency)
+    // If NOT available yet (during initial connection), we count from generationStartTime (Total Time)
+    const effectiveTimerStart = generationStartTime
+        ? new Date(new Date(generationStartTime).getTime() + (firstTokenTimeMs || 0))
         : null;
 
-    // Calculate final duration excluding TTFT
+    // Calculate final duration excluding TTFT if thinkingTimeMs is set (completed)
     const finalDuration = thinkingTimeMs !== undefined
         ? Math.max(0, thinkingTimeMs - (firstTokenTimeMs || 0))
         : 0;
@@ -50,20 +52,22 @@ export const ThinkingHeader: React.FC<ThinkingHeaderProps> = ({
                             <span className="text-base font-bold uppercase tracking-wider text-[var(--theme-text-secondary)] truncate opacity-90">
                                 {lastThought && !lastThought.isFallback ? lastThought.title : t('thinking_text')}
                             </span>
-                            <span className="text-sm text-[var(--theme-text-tertiary)] truncate font-mono mt-0.5">
-                                {thinkingTimeMs !== undefined ? (
-                                    t('thinking_took_time').replace('{duration}', formatDuration(Math.round(finalDuration / 1000)))
-                                ) : (
-                                    effectiveTimerStart 
-                                        ? <ThinkingTimer startTime={effectiveTimerStart} t={t} /> 
-                                        : <span className="animate-pulse">{t('thinking_text')}</span>
-                                )}
+                            <div className="flex items-baseline gap-2 mt-0.5 min-w-0">
+                                <span className="text-sm text-[var(--theme-text-tertiary)] truncate font-mono">
+                                    {thinkingTimeMs !== undefined ? (
+                                        t('thinking_took_time').replace('{duration}', formatDuration(Math.round(finalDuration / 1000)))
+                                    ) : (
+                                        effectiveTimerStart 
+                                            ? <ThinkingTimer startTime={effectiveTimerStart} t={t} /> 
+                                            : <span className="animate-pulse">{t('thinking_text')}</span>
+                                    )}
+                                </span>
                                 {firstTokenTimeMs !== undefined && (
-                                    <span className="ml-1 opacity-75">
-                                        ({t('metrics_ttft')}: {(firstTokenTimeMs / 1000).toFixed(2)}s)
+                                    <span className="text-xs text-[var(--theme-text-tertiary)] font-mono opacity-70 whitespace-nowrap">
+                                        {t('metrics_ttft' as any)}: {(firstTokenTimeMs / 1000).toFixed(2)}s
                                     </span>
                                 )}
-                            </span>
+                            </div>
                         </>
                     ) : (
                         <div className="flex items-baseline gap-2 min-w-0">
@@ -73,8 +77,8 @@ export const ThinkingHeader: React.FC<ThinkingHeaderProps> = ({
                                     : 'Thought Process'}
                             </span>
                             {firstTokenTimeMs !== undefined && (
-                                <span className="text-xs text-[var(--theme-text-tertiary)] truncate font-mono flex-shrink-0">
-                                    ({t('metrics_ttft')}: {(firstTokenTimeMs / 1000).toFixed(2)}s)
+                                <span className="text-xs text-[var(--theme-text-tertiary)] font-mono opacity-70 whitespace-nowrap">
+                                    {t('metrics_ttft' as any)}: {(firstTokenTimeMs / 1000).toFixed(2)}s
                                 </span>
                             )}
                         </div>
@@ -83,7 +87,7 @@ export const ThinkingHeader: React.FC<ThinkingHeaderProps> = ({
 
                 {/* Chevron */}
                 <div className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-[var(--theme-bg-input)] transition-colors flex-shrink-0">
-                    <ChevronDown size={14} className="text-[var(--theme-text-tertiary)] transition-transform duration-300 group-open:rotate-180" strokeWidth={2.5}/>
+                    <ChevronDown size={14} className={`text-[var(--theme-text-tertiary)] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} strokeWidth={2.5}/>
                 </div>
             </div>
         </div>

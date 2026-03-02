@@ -39,7 +39,7 @@ export interface ChatInputAreaProps {
         disabled: boolean;
         onCompositionStart: () => void;
         onCompositionEnd: () => void;
-        onFocus: () => void;
+        onFocus?: () => void;
     };
     quoteProps?: {
         quotes: string[];
@@ -72,6 +72,8 @@ export interface ChatInputAreaProps {
         onOrganizeInfoClick: (suggestion: string) => void;
         onToggleBBox?: () => void;
         isBBoxModeActive?: boolean;
+        onToggleGuide?: () => void;
+        isGuideModeActive?: boolean;
     };
     liveStatusProps?: {
         isConnected: boolean;
@@ -110,7 +112,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
 
     const innerContainerClass = isFullscreen
         ? "w-full max-w-6xl mx-auto flex flex-col h-full"
-        : `mx-auto w-full ${!isPipActive ? 'max-w-4xl' : ''} px-2 sm:px-3 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]`;
+        : `mx-auto w-full ${!isPipActive ? 'max-w-4xl' : ''} px-2 sm:px-3 pt-0 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]`;
 
     const formClass = isFullscreen
         ? "flex-grow flex flex-col relative min-h-0"
@@ -130,6 +132,8 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                         onOrganizeInfoClick={suggestionsProps.onOrganizeInfoClick}
                         onToggleBBox={suggestionsProps.onToggleBBox}
                         isBBoxModeActive={suggestionsProps.isBBoxModeActive}
+                        onToggleGuide={suggestionsProps.onToggleGuide}
+                        isGuideModeActive={suggestionsProps.isGuideModeActive}
                         t={t}
                         isFullscreen={isFullscreen}
                     />
@@ -137,7 +141,10 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             </div>
 
             <div className={innerContainerClass}>
-                <ChatInputToolbar {...toolbarProps} />
+                {/* Wrap toolbar in z-indexed container to ensure dropdowns render above status banner */}
+                <div className="relative z-50">
+                    <ChatInputToolbar {...toolbarProps} />
+                </div>
                 
                 {liveStatusProps && (
                     <LiveStatusBanner {...liveStatusProps} />

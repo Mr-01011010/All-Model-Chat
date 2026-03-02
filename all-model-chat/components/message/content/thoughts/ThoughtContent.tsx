@@ -2,12 +2,14 @@
 import React from 'react';
 import { MarkdownRenderer } from '../../MarkdownRenderer';
 import { SideViewContent, UploadedFile } from '../../../../types';
+import { useMessageStream } from '../../../../hooks/ui/useMessageStream';
 
 interface ThoughtContentProps {
+    messageId: string;
     isLoading: boolean;
     lastThought: { title: string; content: string; isFallback: boolean } | null;
     thinkingTimeMs?: number;
-    content: string;
+    content: string; // Persisted content
     onImageClick: (file: UploadedFile) => void;
     onOpenHtmlPreview: (html: string, options?: { initialTrueFullscreen?: boolean }) => void;
     expandCodeBlocksByDefault: boolean;
@@ -19,6 +21,7 @@ interface ThoughtContentProps {
 }
 
 export const ThoughtContent: React.FC<ThoughtContentProps> = ({
+    messageId,
     isLoading,
     lastThought,
     thinkingTimeMs,
@@ -32,8 +35,12 @@ export const ThoughtContent: React.FC<ThoughtContentProps> = ({
     themeId,
     onOpenSidePanel
 }) => {
+    // Subscribe to live thoughts if loading
+    const { streamThoughts } = useMessageStream(messageId, isLoading);
+    const effectiveContent = streamThoughts || content;
+
     return (
-        <div className="px-3 pb-3 pt-2 border-t border-[var(--theme-border-secondary)]/50 animate-in fade-in slide-in-from-top-2 duration-300 text-xs relative">
+        <div className="px-3 pb-3 pt-2 border-t border-[var(--theme-border-secondary)]/50 text-xs relative">
             {isLoading && lastThought && thinkingTimeMs === undefined && (
                 <div className="mb-2 p-2 rounded-md bg-[var(--theme-bg-input)]/50 border border-[var(--theme-border-secondary)]/50 flex items-start gap-2">
                     <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[var(--theme-text-success)] text-[var(--theme-text-success)] animate-pulse flex-shrink-0 shadow-[0_0_8px_currentColor]" />
@@ -46,7 +53,7 @@ export const ThoughtContent: React.FC<ThoughtContentProps> = ({
 
             <div className="prose prose-sm max-w-none dark:prose-invert text-[var(--theme-text-secondary)] leading-relaxed markdown-body thought-process-content opacity-90">
                 <MarkdownRenderer
-                    content={content}
+                    content={effectiveContent}
                     isLoading={isLoading}
                     onImageClick={onImageClick}
                     onOpenHtmlPreview={onOpenHtmlPreview}

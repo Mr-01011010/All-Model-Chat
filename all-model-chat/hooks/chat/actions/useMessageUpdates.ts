@@ -1,7 +1,7 @@
 
 import React, { useCallback, useRef, useEffect } from 'react';
 import { SavedChatSession, ChatMessage, UploadedFile, VideoMetadata, AppSettings, ChatSettings as IndividualChatSettings } from '../../../types';
-import { generateUniqueId, logService, createNewSession } from '../../../utils/appUtils';
+import { generateUniqueId, logService, createNewSession, createMessage } from '../../../utils/appUtils';
 import { MediaResolution } from '../../../types/settings';
 import { DEFAULT_CHAT_SETTINGS } from '../../../constants/appConstants';
 
@@ -43,7 +43,7 @@ export const useMessageUpdates = ({
             if (s.id === activeSessionId) {
                 return {
                     ...s,
-                    messages: s.messages.map(m => m.id === messageId ? { ...m, content: newContent } : m)
+                    messages: s.messages.map(m => m.id === messageId ? { ...m, content: newContent, apiParts: undefined } : m)
                 };
             }
             return s;
@@ -84,19 +84,14 @@ export const useMessageUpdates = ({
             updateAndPersistSessions(prev => [newSession, ...prev]);
         }
         
-        const newMessage: ChatMessage = {
-            id: generateUniqueId(),
-            role: 'user',
-            content: text,
-            files,
-            timestamp: new Date()
-        };
+        const newMessage = createMessage('user', text, { files });
 
         updateAndPersistSessions(prev => prev.map(s => {
             if (s.id === currentSessionId) {
                 return {
                     ...s,
-                    messages: [...s.messages, newMessage]
+                    messages: [...s.messages, newMessage],
+                    timestamp: Date.now() // Update timestamp to move to top
                 };
             }
             return s;
@@ -135,21 +130,14 @@ export const useMessageUpdates = ({
             if (text || audioUrl) {
                 if (messageIndex === -1) {
                     // Start a new message for this turn
-                    const newMessage: ChatMessage = {
-                        id: generateUniqueId(),
-                        role: role === 'user' ? 'user' : 'model',
-                        content: type === 'content' ? text : '',
-                        thoughts: type === 'thought' ? text : undefined,
-                        timestamp: new Date(),
-                        // Mark as loading to indicate active stream/live status
-                        isLoading: true,
-                        // Capture start time for thinking timer
-                        generationStartTime: new Date(),
-                        // Initialize TTFT to 0 for Live API to ensure timer starts immediately
-                        firstTokenTimeMs: 0,
-                        audioSrc: audioUrl || undefined,
-                        audioAutoplay: audioUrl ? false : undefined // Disable autoplay for Live API generated audio
-                    };
+                    const newMessage = createMessage(role === 'user' ? 'user' : 'model', type === 'content' ? text : '', {
+                         thoughts: type === 'thought' ? text : undefined,
+                         isLoading: true, // Mark as loading to indicate active stream/live status
+                         firstTokenTimeMs: 0, // Initialize TTFT to 0 for Live API
+                         audioSrc: audioUrl || undefined,
+                         audioAutoplay: audioUrl ? false : undefined
+                    });
+                    
                     messages.push(newMessage);
                     
                     // Update ref to track this new message
@@ -208,7 +196,11 @@ export const useMessageUpdates = ({
                  else liveConversationRefs.current.modelId = null;
             }
 
-            return { ...s, messages };
+            return { 
+                ...s, 
+                messages,
+                timestamp: Date.now() // Update timestamp on live activity to keep session active/top
+            };
         }));
     }, [activeSessionId, updateAndPersistSessions, appSettings, currentChatSettings, setActiveSessionId]);
 

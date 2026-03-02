@@ -8,6 +8,7 @@ import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
 import { ThinkingHeader } from './thoughts/ThinkingHeader';
 import { ThinkingActions } from './thoughts/ThinkingActions';
 import { ThoughtContent } from './thoughts/ThoughtContent';
+import { useMessageStream } from '../../../hooks/ui/useMessageStream';
 
 interface MessageThoughtsProps {
     message: ChatMessage;
@@ -36,8 +37,13 @@ export const MessageThoughts: React.FC<MessageThoughtsProps> = ({
     isGraphvizRenderingEnabled,
     onOpenSidePanel
 }) => {
-    const { thoughts, isLoading, role } = message;
-    const areThoughtsVisible = role === 'model' && thoughts && showThoughts;
+    const { thoughts, isLoading, role, id: messageId } = message;
+    
+    // Subscribe to live thoughts if loading to check visibility
+    const { streamThoughts } = useMessageStream(messageId, !!isLoading && role === 'model');
+    const effectiveThoughts = streamThoughts || thoughts;
+    
+    const areThoughtsVisible = role === 'model' && effectiveThoughts && showThoughts;
     
     // UI State
     const [isExpanded, setIsExpanded] = useState(false);
@@ -48,7 +54,7 @@ export const MessageThoughts: React.FC<MessageThoughtsProps> = ({
     // Copy Hook
     const { isCopied, copyToClipboard } = useCopyToClipboard(2000);
 
-    const lastThought = useMemo(() => parseThoughtProcess(thoughts), [thoughts]);
+    const lastThought = useMemo(() => parseThoughtProcess(effectiveThoughts), [effectiveThoughts]);
 
     if (!areThoughtsVisible) return null;
 
@@ -66,7 +72,7 @@ export const MessageThoughts: React.FC<MessageThoughtsProps> = ({
             return;
         }
 
-        if (!thoughts || isTranslatingThoughts) return;
+        if (!effectiveThoughts || isTranslatingThoughts) return;
 
         setIsTranslatingThoughts(true);
         try {
@@ -77,7 +83,7 @@ export const MessageThoughts: React.FC<MessageThoughtsProps> = ({
                 return;
             }
 
-            const result = await geminiServiceInstance.translateText(keyResult.key, thoughts, 'Chinese');
+            const result = await geminiServiceInstance.translateText(keyResult.key, effectiveThoughts, 'Chinese');
             setTranslatedThoughts(result);
             setIsShowingTranslation(true);
         } catch (error) {
@@ -90,7 +96,7 @@ export const MessageThoughts: React.FC<MessageThoughtsProps> = ({
     const handleCopyThoughts = (e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
-        const textToCopy = isShowingTranslation && translatedThoughts ? translatedThoughts : thoughts;
+        const textToCopy = isShowingTranslation && translatedThoughts ? translatedThoughts : effectiveThoughts;
         if (textToCopy) {
             copyToClipboard(textToCopy);
         }
@@ -99,12 +105,14 @@ export const MessageThoughts: React.FC<MessageThoughtsProps> = ({
     const hasFiles = message.files && message.files.length > 0;
 
     return (
-        <div className={`mb-2 ${hasFiles ? 'mt-1' : '-mt-2'}`}>
-            <details 
-                className="group rounded-xl bg-[var(--theme-bg-tertiary)]/20 overflow-hidden transition-all duration-200 open:bg-[var(--theme-bg-tertiary)]/30 open:shadow-sm"
-                onToggle={(e) => setIsExpanded((e.target as HTMLDetailsElement).open)}
+        <div className={`mb-2 ${hasFiles ? 'mt-1' : '-mt-2'} message-thoughts-block`}>
+            <div 
+                className={`group rounded-xl bg-[var(--theme-bg-tertiary)]/20 overflow-hidden transition-all duration-200 ${isExpanded ? 'bg-[var(--theme-bg-tertiary)]/30 shadow-sm' : ''}`}
             >
-                <summary className="list-none flex select-none items-center justify-between gap-2 px-3 py-2 cursor-pointer transition-colors hover:bg-[var(--theme-bg-tertiary)]/40 focus:outline-none">
+                <div 
+                    className="flex select-none items-center justify-between gap-2 px-3 py-2 cursor-pointer transition-colors hover:bg-[var(--theme-bg-tertiary)]/40 focus:outline-none"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                >
                     <ThinkingHeader 
                         isLoading={!!isLoading}
                         lastThought={lastThought}
@@ -112,36 +120,45 @@ export const MessageThoughts: React.FC<MessageThoughtsProps> = ({
                         generationStartTime={message.generationStartTime}
                         firstTokenTimeMs={message.firstTokenTimeMs}
                         t={t}
+                        isExpanded={isExpanded}
                     />
                     
                     <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
-                        <ThinkingActions 
-                            isExpanded={isExpanded}
-                            isShowingTranslation={isShowingTranslation}
-                            isTranslatingThoughts={isTranslatingThoughts}
-                            isCopied={isCopied}
-                            onTranslate={handleTranslateThoughts}
-                            onCopy={handleCopyThoughts}
+                        {/* Stop propagation to prevent toggling when clicking actions */}
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <ThinkingActions 
+                                isExpanded={isExpanded}
+                                isShowingTranslation={isShowingTranslation}
+                                isTranslatingThoughts={isTranslatingThoughts}
+                                isCopied={isCopied}
+                                onTranslate={handleTranslateThoughts}
+                                onCopy={handleCopyThoughts}
+                                t={t}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className={`thought-process-accordion ${isExpanded ? 'expanded' : ''}`}>
+                    <div className="thought-process-inner">
+                        <ThoughtContent 
+                            messageId={messageId}
+                            isLoading={!!isLoading}
+                            lastThought={lastThought}
+                            thinkingTimeMs={message.thinkingTimeMs}
+                            content={isShowingTranslation && translatedThoughts ? translatedThoughts : (thoughts || '')}
+                            onImageClick={onImageClick}
+                            onOpenHtmlPreview={onOpenHtmlPreview}
+                            expandCodeBlocksByDefault={expandCodeBlocksByDefault}
+                            isMermaidRenderingEnabled={isMermaidRenderingEnabled}
+                            isGraphvizRenderingEnabled={isGraphvizRenderingEnabled}
                             t={t}
+                            themeId={themeId}
+                            onOpenSidePanel={onOpenSidePanel}
                         />
                     </div>
-                </summary>
-
-                <ThoughtContent 
-                    isLoading={!!isLoading}
-                    lastThought={lastThought}
-                    thinkingTimeMs={message.thinkingTimeMs}
-                    content={isShowingTranslation && translatedThoughts ? translatedThoughts : (thoughts || '')}
-                    onImageClick={onImageClick}
-                    onOpenHtmlPreview={onOpenHtmlPreview}
-                    expandCodeBlocksByDefault={expandCodeBlocksByDefault}
-                    isMermaidRenderingEnabled={isMermaidRenderingEnabled}
-                    isGraphvizRenderingEnabled={isGraphvizRenderingEnabled}
-                    t={t}
-                    themeId={themeId}
-                    onOpenSidePanel={onOpenSidePanel}
-                />
-            </details>
+                </div>
+            </div>
         </div>
     );
 };

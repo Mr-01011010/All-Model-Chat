@@ -2,11 +2,22 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      plugins: [react()],
+      plugins: [
+        react(),
+        viteStaticCopy({
+            targets: [
+                {
+                    src: 'node_modules/pyodide/*',
+                    dest: 'pyodide'
+                }
+            ]
+        })
+      ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },
@@ -19,7 +30,20 @@ export default defineConfig(({ mode }) => {
       },
       build: {
         rollupOptions: {
-          external: ['react-pdf', 'pdfjs-dist']
+          // Externalize React and ReactDOM to ensure the app uses the same
+          // instance as react-pdf (which is loaded via CDN/importmap).
+          // This prevents the "Cannot read properties of null (reading 'useReducer')" error.
+          external: [
+            'react', 
+            'react-dom', 
+            'react-dom/client', 
+            'react/jsx-runtime',
+            'react-pdf', 
+            'pdfjs-dist',
+            '@formkit/auto-animate/react',
+            'react-virtuoso',
+            'xlsx'
+          ]
         }
       }
     };

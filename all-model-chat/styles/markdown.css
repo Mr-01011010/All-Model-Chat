@@ -1,20 +1,46 @@
 
+
 /* Markdown Body Overrides to prevent theme conflicts */
 .markdown-body {
   background-color: transparent !important;
   color: inherit !important;
   font-family: inherit !important;
   font-size: inherit !important;
-  line-height: inherit !important;
+  line-height: 1.8 !important; /* Increased line spacing */
+}
+
+/* Tighter line height for headers */
+.markdown-body h1, 
+.markdown-body h2, 
+.markdown-body h3, 
+.markdown-body h4, 
+.markdown-body h5, 
+.markdown-body h6 {
+  line-height: 1.3 !important;
+  margin-top: 1.5em !important;
+  margin-bottom: 0.5em !important;
 }
 
 /* Ensure first element doesn't push down the content, aligning text with avatar */
-.markdown-body > *:first-child {
+.markdown-body > *:first-child,
+.is-loading > *:first-child {
   margin-top: 0 !important;
+}
+
+/* Ensure last element doesn't push bottom content, aligning text with bubble bottom */
+.markdown-body > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Apply optimized fade-in-move animation to block elements */
+.markdown-body > * {
+  /* Animation removed to prevent re-triggering during virtualization scroll */
+  transform-origin: left bottom;
 }
 
 .markdown-body p {
   color: inherit !important;
+  margin-bottom: 1em !important; /* Ensure paragraph spacing matches line height rhythm */
 }
 
 .markdown-body a {
@@ -23,6 +49,7 @@
 
 .markdown-body pre {
   background-color: var(--theme-bg-code-block) !important;
+  line-height: 1.5 !important; /* Keep code blocks tighter */
 }
 
 /* Blockquote Overrides */
@@ -35,19 +62,31 @@
   opacity: 0.85; /* Slight dimming for differentiation, but keeping high readability */
 }
 
+/* Horizontal Rule (Thin Line) - Darker/More Visible */
+.markdown-body hr {
+  height: 1px !important;
+  background-color: var(--theme-text-tertiary) !important;
+  border: none !important;
+  margin: 1.5rem 0 !important;
+  opacity: 0.5 !important;
+}
+
 /* Ensure lists are visible */
 .markdown-body ol {
   list-style-type: decimal !important;
   padding-left: 1.5em !important;
+  margin-bottom: 1em !important;
 }
 
 .markdown-body ul {
   list-style-type: disc !important;
   padding-left: 1.5em !important;
+  margin-bottom: 1em !important;
 }
 
 .markdown-body li {
   display: list-item !important;
+  margin-bottom: 0.25em !important;
 }
 
 /* Images in Markdown */
@@ -75,69 +114,77 @@ code.hljs {
   padding: 0.2em 0.4em;
   border: 1px solid var(--theme-bg-info);
   font-size: 0.9em;
+  line-height: 1.4; /* Slightly tighter for inline code tags */
 }
 
-/* Table Styles - Clean Transparent Style with NO Black Backgrounds */
+/* Table Styles - Clean Minimalist Style (No Grid Borders) */
 .markdown-body table {
   border-collapse: collapse;
   width: 100%;
   margin: 0; /* Handled by TableBlock wrapper */
   background-color: transparent !important;
+  border: none !important;
+  table-layout: auto;
 }
 
 .markdown-body thead {
   background-color: transparent !important;
+  border-bottom: 1px solid var(--theme-border-secondary) !important;
 }
 
-/* Explicitly target thead tr to remove any black background on the first row */
 .markdown-body thead tr {
   background-color: transparent !important;
+  border: none !important;
 }
 
 .markdown-body thead th {
-  background-color: transparent !important; /* Removed solid background */
-  color: var(--theme-text-primary) !important; /* Ensure header text is visible */
-  font-weight: 600;
-  padding: 0.75rem 1rem;
+  background-color: transparent !important;
+  color: var(--theme-text-primary) !important;
+  font-weight: 700; /* Bolder header */
+  padding: 1rem 1rem 1rem 0; /* Reduced left padding, increased vertical */
   text-align: left;
-  border: 1px solid var(--theme-border-secondary) !important;
-  border-bottom: 2px solid var(--theme-border-secondary) !important; /* Distinct separation */
+  border: none !important; /* Remove individual cell borders */
   white-space: nowrap;
+  font-size: 0.95em;
+  opacity: 0.9;
 }
 
 .markdown-body tbody {
   background-color: transparent !important;
 }
 
-.markdown-body tbody td {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--theme-border-secondary) !important;
-  color: var(--theme-text-secondary) !important;
-  vertical-align: middle;
-  background-color: transparent !important;
-}
-
-/* Removed zebra striping to avoid "black effect" on dark themes */
+/* Horizontal lines between rows */
 .markdown-body tbody tr {
   background-color: transparent !important;
+  border-bottom: 1px solid var(--theme-border-secondary) !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
 }
 
-.markdown-body tbody tr:nth-child(2n) {
-  background-color: transparent !important;
-}
-
-.markdown-body tbody tr:nth-child(odd) {
-  background-color: transparent !important;
+/* Remove border from last row to avoid double border with container bottom if present, or just clean look */
+.markdown-body tbody tr:last-child {
+  border-bottom: none !important;
 }
 
 .markdown-body tbody tr:hover {
-  background-color: var(--theme-bg-tertiary) !important;
+  background-color: transparent !important; /* No hover effect for cleaner look, or maybe subtle */
 }
 
-/* Highlight the last row typically used for Totals */
-.markdown-body tbody tr:last-child td {
-  font-weight: 600;
+.markdown-body tbody td {
+  padding: 1.25rem 1rem 1.25rem 0; /* Generous padding matches the design */
+  border: none !important; /* No vertical borders */
+  color: var(--theme-text-secondary) !important;
+  vertical-align: top;
+  background-color: transparent !important;
+  line-height: 1.6;
+}
+
+/* First Column Emphasis (Key Column) */
+.markdown-body tbody td:first-child {
   color: var(--theme-text-primary) !important;
+  font-weight: 500;
+  min-width: 100px; /* Ensure label column has some width */
 }
 
 /* Citation Styles */
@@ -203,6 +250,7 @@ code.hljs {
   word-break: break-all;
   color: var(--theme-text-primary) !important; /* Force primary text color */
   font-family: inherit;
+  line-height: 1.5 !important;
 }
 
 /* Target the specific structure from CodeBlock if it's used inside tool-result */

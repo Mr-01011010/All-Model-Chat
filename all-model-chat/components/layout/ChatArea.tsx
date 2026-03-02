@@ -20,17 +20,19 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
     currentModelName, availableModels, selectedModelId, onSelectModel,
     isSwitchingModel, isHistorySidebarOpen, onLoadCanvasPrompt, isCanvasPromptActive,
     onToggleBBox, isBBoxModeActive,
+    onToggleGuide, isGuideModeActive,
     isKeyLocked, themeId, modelsLoadingError,
     messages, scrollContainerRef, setScrollContainerRef, onScrollContainerScroll, onEditMessage,
-    onDeleteMessage, onRetryMessage, showThoughts, themeColors, baseFontSize,
+    onDeleteMessage, onRetryMessage, showThoughts, baseFontSize,
     expandCodeBlocksByDefault, isMermaidRenderingEnabled, isGraphvizRenderingEnabled,
-    onSuggestionClick, onOrganizeInfoClick, onFollowUpSuggestionClick, onTextToSpeech, onGenerateCanvas, onContinueGeneration, ttsMessageId, onQuickTTS, language, scrollNavVisibility,
-    onScrollToPrevTurn, onScrollToNextTurn, onEditMessageContent, onUpdateMessageFile,
+    onSuggestionClick, onOrganizeInfoClick, onFollowUpSuggestionClick, onTextToSpeech, onGenerateCanvas, onContinueGeneration, ttsMessageId, onQuickTTS, language,
+    onEditMessageContent, onUpdateMessageFile,
     appSettings, commandedInput, setCommandedInput, onMessageSent,
     selectedFiles, setSelectedFiles, onSendMessage, isEditing, editMode, editingMessageId, setEditingMessageId, onStopGenerating,
     onCancelEdit, onProcessFiles, onAddFileById, onCancelUpload, onTranscribeAudio,
     isProcessingFile, fileError, isImageEditModel, aspectRatio, setAspectRatio, imageSize, setImageSize,
     isGoogleSearchEnabled, onToggleGoogleSearch, isCodeExecutionEnabled, onToggleCodeExecution,
+    isLocalPythonEnabled, onToggleLocalPython,
     isUrlContextEnabled, onToggleUrlContext, isDeepSearchEnabled, onToggleDeepSearch,
     onClearChat, onOpenSettings, onToggleCanvasPrompt,
     onTogglePinCurrentSession, onRetryLastTurn, onEditLastUserMessage,
@@ -49,7 +51,7 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
 
   return (
     <div
-      className="flex flex-col flex-grow h-full overflow-hidden relative chat-bg-enhancement"
+      className="flex flex-col flex-grow h-full overflow-hidden relative chat-bg-enhancement will-change-[width] transform-gpu"
       onDragEnter={handleAppDragEnter}
       onDragOver={handleAppDragOver}
       onDragLeave={handleAppDragLeave}
@@ -96,7 +98,6 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
         onRetryMessage={onRetryMessage}
         onEditMessageContent={onEditMessageContent}
         showThoughts={showThoughts}
-        themeColors={themeColors}
         themeId={themeId}
         baseFontSize={baseFontSize}
         expandCodeBlocksByDefault={expandCodeBlocksByDefault}
@@ -112,9 +113,6 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
         onQuickTTS={onQuickTTS}
         t={t}
         language={language}
-        scrollNavVisibility={scrollNavVisibility}
-        onScrollToPrevTurn={onScrollToPrevTurn}
-        onScrollToNextTurn={onScrollToNextTurn}
         chatInputHeight={chatInputHeight}
         appSettings={appSettings}
         currentModelId={currentChatSettings.modelId} 
@@ -122,6 +120,7 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
         onUpdateMessageFile={onUpdateMessageFile}
         onQuote={handleQuote}
         onInsert={handleInsert}
+        activeSessionId={activeSessionId}
       />
 
       <div ref={chatInputContainerRef} className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none">
@@ -160,6 +159,8 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
             onToggleGoogleSearch={onToggleGoogleSearch}
             isCodeExecutionEnabled={isCodeExecutionEnabled}
             onToggleCodeExecution={onToggleCodeExecution}
+            isLocalPythonEnabled={isLocalPythonEnabled}
+            onToggleLocalPython={onToggleLocalPython}
             isUrlContextEnabled={isUrlContextEnabled}
             onToggleUrlContext={onToggleUrlContext}
             isDeepSearchEnabled={isDeepSearchEnabled}
@@ -187,6 +188,8 @@ export const ChatArea: React.FC<ChatAreaProps> = (props) => {
             onLiveTranscript={onLiveTranscript}
             onToggleBBox={onToggleBBox}
             isBBoxModeActive={isBBoxModeActive}
+            onToggleGuide={onToggleGuide}
+            isGuideModeActive={isGuideModeActive}
             themeId={themeId}
           />
         </div>

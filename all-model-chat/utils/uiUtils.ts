@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { ThemeColors } from '../types/theme';
 import { AppSettings, MediaResolution } from '../types';
@@ -58,38 +59,6 @@ export const applyThemeToDocument = (doc: Document, theme: Theme, settings: AppS
   doc.body.style.fontSize = `${settings.baseFontSize}px`;
 };
 
-export function pcmBase64ToWavUrl(
-  base64: string,
-  sampleRate = 24_000,
-  numChannels = 1,
-): string {
-  const pcm = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-  // Write WAV header
-  const bytesPerSample = 2;
-  const blockAlign = numChannels * bytesPerSample;
-  const wav = new ArrayBuffer(44 + pcm.length);
-  const dv = new DataView(wav);
-
-  let p = 0;
-  const writeStr = (s: string) => [...s].forEach(ch => dv.setUint8(p++, ch.charCodeAt(0)));
-
-  writeStr('RIFF');
-  dv.setUint32(p, 36 + pcm.length, true); p += 4;
-  writeStr('WAVEfmt ');
-  dv.setUint32(p, 16, true); p += 4;        // fmt length
-  dv.setUint16(p, 1, true);  p += 2;        // PCM
-  dv.setUint16(p, numChannels, true); p += 2;
-  dv.setUint32(p, sampleRate, true); p += 4;
-  dv.setUint32(p, sampleRate * blockAlign, true); p += 4;
-  dv.setUint16(p, blockAlign, true); p += 2;
-  dv.setUint16(p, bytesPerSample * 8, true); p += 2;
-  writeStr('data');
-  dv.setUint32(p, pcm.length, true); p += 4;
-
-  new Uint8Array(wav, 44).set(pcm);
-  return URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
-}
-
 export const showNotification = async (title: string, options?: NotificationOptions) => {
   if (!('Notification' in window)) {
     console.warn('This browser does not support desktop notification');
@@ -119,6 +88,56 @@ export const showNotification = async (title: string, options?: NotificationOpti
     if (permission === 'granted') {
       show();
     }
+  }
+};
+
+let sharedAudioContext: AudioContext | null = null;
+
+const getAudioContext = () => {
+    if (!sharedAudioContext) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+            sharedAudioContext = new AudioContextClass();
+        }
+    }
+    return sharedAudioContext;
+};
+
+export const playCompletionSound = () => {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    // Ensure audio context is running (it might be suspended if no user interaction yet)
+    if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+    }
+
+    const playNote = (frequency: number, startTime: number, duration: number) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.type = 'sine'; // Pure sine wave
+        oscillator.frequency.setValueAtTime(frequency, ctx.currentTime + startTime);
+
+        // Volume envelope: Prevent popping and create fade out effect
+        gainNode.gain.setValueAtTime(0, ctx.currentTime + startTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, ctx.currentTime + startTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startTime + duration);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.start(ctx.currentTime + startTime);
+        oscillator.stop(ctx.currentTime + startTime + duration);
+    };
+
+    // Play two notes to create "Ding-Dong" effect
+    playNote(659.25, 0, 0.15);    // First high note (E5)
+    playNote(523.25, 0.15, 0.2);  // Second low note (C5)
+
+  } catch (e) {
+    console.error("Error playing completion sound", e);
   }
 };
 

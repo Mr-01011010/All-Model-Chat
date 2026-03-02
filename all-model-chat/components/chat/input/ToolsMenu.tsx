@@ -1,16 +1,21 @@
 
-import React, { useState, useRef } from 'react';
+
+import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { SlidersHorizontal, Globe, Check, Terminal, Link, X, Telescope, Calculator } from 'lucide-react';
 import { translations } from '../../../utils/appUtils';
 import { useClickOutside } from '../../../hooks/useClickOutside';
-import { IconYoutube } from '../../icons/CustomIcons';
+import { IconYoutube, IconPython } from '../../icons/CustomIcons';
 import { CHAT_INPUT_BUTTON_CLASS } from '../../../constants/appConstants';
+import { useWindowContext } from '../../../contexts/WindowContext';
 
 interface ToolsMenuProps {
     isGoogleSearchEnabled: boolean;
     onToggleGoogleSearch: () => void;
     isCodeExecutionEnabled: boolean;
     onToggleCodeExecution: () => void;
+    isLocalPythonEnabled?: boolean;
+    onToggleLocalPython?: () => void;
     isUrlContextEnabled: boolean;
     onToggleUrlContext: () => void;
     isDeepSearchEnabled: boolean;
@@ -53,19 +58,78 @@ const ActiveToolBadge: React.FC<{
 export const ToolsMenu: React.FC<ToolsMenuProps> = ({
     isGoogleSearchEnabled, onToggleGoogleSearch,
     isCodeExecutionEnabled, onToggleCodeExecution,
+    isLocalPythonEnabled, onToggleLocalPython,
     isUrlContextEnabled, onToggleUrlContext,
     isDeepSearchEnabled, onToggleDeepSearch,
     onAddYouTubeVideo, onCountTokens,
     disabled, t, isNativeAudioModel
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [menuPosition, setMenuPosition] = useState<React.CSSProperties>({});
     const containerRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    
+    const { window: targetWindow } = useWindowContext();
 
     useClickOutside(containerRef, () => setIsOpen(false), isOpen);
 
-    const handleToggle = (toggleFunc: () => void) => {
-        toggleFunc();
-        setIsOpen(false);
+    // Prevent click-outside logic from firing when interacting with the portaled menu
+    useEffect(() => {
+        if (!isOpen || !menuRef.current) return;
+        
+        const stopProp = (e: Event) => e.stopPropagation();
+        const menuEl = menuRef.current;
+        
+        // Stop bubbling to document so useClickOutside doesn't see it
+        menuEl.addEventListener('mousedown', stopProp);
+        menuEl.addEventListener('touchstart', stopProp);
+        
+        return () => {
+            menuEl.removeEventListener('mousedown', stopProp);
+            menuEl.removeEventListener('touchstart', stopProp);
+        };
+    }, [isOpen]);
+
+    // Dynamic fixed positioning
+    useLayoutEffect(() => {
+        if (isOpen && buttonRef.current && targetWindow) {
+            const buttonRect = buttonRef.current.getBoundingClientRect();
+            const viewportWidth = targetWindow.innerWidth;
+            const viewportHeight = targetWindow.innerHeight;
+            
+            const MENU_WIDTH = 240; // w-60 approx 240px
+            const BUTTON_MARGIN = 10;
+            const GAP = 8;
+            
+            const newStyle: React.CSSProperties = {
+                position: 'fixed',
+                zIndex: 9999, // Ensure it sits on top of everything including toolbar
+            };
+
+            // Horizontal Alignment
+            if (buttonRect.left + MENU_WIDTH > viewportWidth - BUTTON_MARGIN) {
+                // Align right edge of menu with right edge of button
+                newStyle.left = buttonRect.right - MENU_WIDTH;
+                newStyle.transformOrigin = 'bottom right';
+            } else {
+                // Align left
+                newStyle.left = buttonRect.left;
+                newStyle.transformOrigin = 'bottom left';
+            }
+
+            // Vertical Alignment (Anchored to bottom of viewport relative to button top)
+            newStyle.bottom = viewportHeight - buttonRect.top + GAP;
+
+            setMenuPosition(newStyle);
+        }
+    }, [isOpen, targetWindow]);
+
+    const handleToggle = (toggleFunc?: () => void) => {
+        if (toggleFunc) {
+            toggleFunc();
+            setIsOpen(false);
+        }
     };
     
     // Matched icon size to other toolbar buttons (Attachment, Mic, etc.)
@@ -75,6 +139,7 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
       { labelKey: 'deep_search_label', icon: <Telescope size={18} strokeWidth={2} />, isEnabled: isDeepSearchEnabled, action: () => handleToggle(onToggleDeepSearch) },
       { labelKey: 'web_search_label', icon: <Globe size={18} strokeWidth={2} />, isEnabled: isGoogleSearchEnabled, action: () => handleToggle(onToggleGoogleSearch) },
       { labelKey: 'code_execution_label', icon: <Terminal size={18} strokeWidth={2} />, isEnabled: isCodeExecutionEnabled, action: () => handleToggle(onToggleCodeExecution) },
+      { labelKey: 'local_python_label', icon: <IconPython size={18} strokeWidth={2} />, isEnabled: !!isLocalPythonEnabled, action: () => handleToggle(onToggleLocalPython) },
       { labelKey: 'url_context_label', icon: <Link size={18} strokeWidth={2} />, isEnabled: isUrlContextEnabled, action: () => handleToggle(onToggleUrlContext) },
       { labelKey: 'attachMenu_addByUrl', icon: <IconYoutube size={18} strokeWidth={2} />, isEnabled: false, action: () => { onAddYouTubeVideo(); setIsOpen(false); } },
       { labelKey: 'tools_token_count_label', icon: <Calculator size={18} strokeWidth={2} />, isEnabled: false, action: () => { onCountTokens(); setIsOpen(false); } }
@@ -88,6 +153,10 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
             // 3. Other tools are not explicitly supported/tested in this mode yet.
             return false;
         }
+        // Only show Local Python if handler is provided (it's new feature)
+        if (item.labelKey === 'local_python_label' && !onToggleLocalPython) {
+            return false;
+        }
         return true;
     });
     
@@ -97,6 +166,7 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
       <div className="flex items-center">
         <div className="relative" ref={containerRef}>
             <button
+                ref={buttonRef}
                 type="button"
                 onClick={() => setIsOpen(p => !p)}
                 disabled={disabled}
@@ -108,9 +178,11 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
             >
                 <SlidersHorizontal size={menuIconSize} strokeWidth={2} />
             </button>
-            {isOpen && (
+            {isOpen && targetWindow && createPortal(
                 <div 
-                    className="absolute bottom-full left-0 mb-2 w-60 bg-[var(--theme-bg-primary)] border border-[var(--theme-border-secondary)] rounded-xl shadow-premium z-20 py-1.5 animate-in fade-in zoom-in-95 duration-100" 
+                    ref={menuRef}
+                    className="fixed w-60 bg-[var(--theme-bg-primary)] border border-[var(--theme-border-secondary)] rounded-xl shadow-premium py-1.5 animate-in fade-in zoom-in-95 duration-100 custom-scrollbar" 
+                    style={menuPosition}
                     role="menu"
                 >
                     {filteredItems.map(item => (
@@ -127,7 +199,8 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
                         {item.isEnabled && <Check size={16} className="text-[var(--theme-text-link)]" strokeWidth={2} />}
                       </button>
                     ))}
-                </div>
+                </div>,
+                targetWindow.document.body
             )}
         </div>
         {/* Only show badges for tools that are relevant to the current mode */}
@@ -137,6 +210,8 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
         {!isNativeAudioModel && isGoogleSearchEnabled && <ActiveToolBadge label={t('web_search_short')} onRemove={onToggleGoogleSearch} removeAriaLabel="Disable Web Search" icon={<Globe size={14} strokeWidth={2} />} />}
         
         {!isNativeAudioModel && isCodeExecutionEnabled && <ActiveToolBadge label={t('code_execution_short')} onRemove={onToggleCodeExecution} removeAriaLabel="Disable Code Execution" icon={<Terminal size={14} strokeWidth={2} />} />}
+
+        {!isNativeAudioModel && isLocalPythonEnabled && onToggleLocalPython && <ActiveToolBadge label={t('local_python_short')} onRemove={onToggleLocalPython} removeAriaLabel="Disable Local Python" icon={<IconPython size={14} strokeWidth={2} />} />}
         
         {!isNativeAudioModel && isUrlContextEnabled && <ActiveToolBadge label={t('url_context_short')} onRemove={onToggleUrlContext} removeAriaLabel="Disable URL Context" icon={<Link size={14} strokeWidth={2} />} />}
       </div>

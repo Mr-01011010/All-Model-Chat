@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Pin, MoreHorizontal } from 'lucide-react';
 import { SavedChatSession } from '../../types';
 import { translations } from '../../utils/appUtils';
@@ -40,24 +39,45 @@ export const SessionItem: React.FC<SessionItemProps> = (props) => {
     toggleMenu, setActiveMenu, handleDragStart, t
   } = props;
 
+  const [isRightClickAnimating, setIsRightClickAnimating] = useState(false);
+  const isActive = activeMenu === session.id;
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsRightClickAnimating(true);
+    setActiveMenu(session.id);
+    setTimeout(() => setIsRightClickAnimating(false), 200);
+  };
+
   return (
     <li
       draggable="true"
       onDragStart={(e) => handleDragStart(e, session.id)}
-      className={`group relative rounded-lg my-0.5 cursor-grab active:cursor-grabbing ${session.id === activeSessionId ? 'bg-[var(--theme-bg-tertiary)]' : ''} ${newlyTitledSessionId === session.id ? 'title-update-animate' : ''}`}
+      onContextMenu={handleContextMenu}
+      className={`group relative rounded-lg my-0.5 cursor-grab active:cursor-grabbing transition-transform duration-100 ease-out ${session.id === activeSessionId ? 'bg-[var(--theme-bg-tertiary)]' : ''} ${newlyTitledSessionId === session.id ? 'title-update-animate' : ''} ${isRightClickAnimating ? 'scale-95 bg-[var(--theme-bg-tertiary)]' : ''} ${isActive ? 'z-20' : ''}`}
     >
       <div className={`w-full flex items-center justify-between text-left px-1 py-2 text-sm transition-colors rounded-lg ${session.id === activeSessionId ? 'text-[var(--theme-text-primary)]' : 'text-[var(--theme-text-secondary)] hover:bg-[var(--theme-bg-tertiary)] hover:text-[var(--theme-text-primary)]'}`}>
         {editingItem?.type === 'session' && editingItem.id === session.id ? (
           <input ref={editInputRef} type="text" value={editingItem.title} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} onBlur={handleRenameConfirm} onKeyDown={handleRenameKeyDown} className="flex-grow bg-transparent border border-[var(--theme-border-focus)] rounded-md px-1 py-0 text-sm w-full" />
         ) : (
-          <button onClick={() => onSelectSession(session.id)} className="flex items-center flex-grow min-w-0" aria-current={session.id === activeSessionId ? "page" : undefined}>
+          <a 
+            href={`/chat/${session.id}`} 
+            onClick={(e) => {
+              if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                e.preventDefault();
+                onSelectSession(session.id);
+              }
+            }} 
+            className="flex items-center flex-grow min-w-0 no-underline text-inherit" 
+            aria-current={session.id === activeSessionId ? "page" : undefined}
+          >
             {session.isPinned && <Pin size={12} className="mr-2 text-[var(--theme-text-link)] flex-shrink-0" strokeWidth={2} />}
             <span className="font-medium truncate" title={session.title}>
               {generatingTitleSessionIds.has(session.id) ? (
                 <div className="flex items-center gap-2 text-xs text-[var(--theme-text-tertiary)]"><LoadingDots /><span>{t('generatingTitle')}</span></div>
               ) : (session.title)}
             </span>
-          </button>
+          </a>
         )}
         {loadingSessionIds.has(session.id) ? (
           <LoadingDots />

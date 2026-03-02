@@ -1,12 +1,17 @@
 
 import React from 'react';
 import { Activity, Loader2, XCircle } from 'lucide-react';
+import { Select } from '../../../shared/Select';
+import { ModelOption } from '../../../../types';
 
 interface ApiConnectionTesterProps {
     onTest: () => void;
     testStatus: 'idle' | 'testing' | 'success' | 'error';
     testMessage: string | null;
     isTestDisabled: boolean;
+    availableModels?: ModelOption[];
+    testModelId?: string;
+    onModelChange?: (id: string) => void;
     t: (key: string) => string;
 }
 
@@ -15,27 +20,51 @@ export const ApiConnectionTester: React.FC<ApiConnectionTesterProps> = ({
     testStatus,
     testMessage,
     isTestDisabled,
+    availableModels,
+    testModelId,
+    onModelChange,
     t
 }) => {
     return (
         <div className="pt-2 flex flex-col gap-2">
-            <button
-                type="button"
-                onClick={onTest}
-                disabled={isTestDisabled}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all ${
-                    testStatus === 'testing' 
-                        ? 'bg-[var(--theme-bg-tertiary)] border-transparent cursor-wait'
-                        : 'bg-transparent border-[var(--theme-border-secondary)] hover:bg-[var(--theme-bg-tertiary)] hover:border-[var(--theme-border-focus)] text-[var(--theme-text-primary)]'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-                {testStatus === 'testing' ? (
-                    <Loader2 size={16} className="animate-spin" />
-                ) : (
-                    <Activity size={16} strokeWidth={1.5} />
+            <div className="flex items-center gap-2">
+                {/* Optional Model Selector for Testing */}
+                {availableModels && availableModels.length > 0 && onModelChange && testModelId && (
+                    <div className="flex-grow">
+                        <Select
+                            id="api-test-model"
+                            label="Test Model"
+                            layout="horizontal"
+                            value={testModelId}
+                            onChange={(e) => onModelChange(e.target.value)}
+                            labelContent={<span className="text-xs font-semibold uppercase tracking-wider text-[var(--theme-text-tertiary)]">Test Model</span>}
+                            className="mb-0"
+                        >
+                            {availableModels.map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </Select>
+                    </div>
                 )}
-                <span>{testStatus === 'testing' ? t('apiConfig_testing') : t('apiConfig_testConnection')}</span>
-            </button>
+
+                <button
+                    type="button"
+                    onClick={onTest}
+                    disabled={isTestDisabled}
+                    className={`flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all h-[42px] ${
+                        testStatus === 'testing' 
+                            ? 'bg-[var(--theme-bg-tertiary)] border-transparent cursor-wait'
+                            : 'bg-transparent border-[var(--theme-border-secondary)] hover:bg-[var(--theme-bg-tertiary)] hover:border-[var(--theme-border-focus)] text-[var(--theme-text-primary)]'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                    {testStatus === 'testing' ? (
+                        <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                        <Activity size={16} strokeWidth={1.5} />
+                    )}
+                    <span>{testStatus === 'testing' ? t('apiConfig_testing') : t('apiConfig_testConnection')}</span>
+                </button>
+            </div>
 
             {/* Test Results */}
             {testStatus === 'success' && (

@@ -1,7 +1,6 @@
-
 import { useCallback } from 'react';
 import { SavedChatSession } from '../../../types';
-import { createNewSession, logService } from '../../../utils/appUtils';
+import { createNewSession, logService, cleanupFilePreviewUrls } from '../../../utils/appUtils';
 
 interface UseSessionActionsProps {
     updateAndPersistSessions: (updater: (prev: SavedChatSession[]) => SavedChatSession[], options?: { persist?: boolean }) => Promise<void>;
@@ -15,14 +14,30 @@ export const useSessionActions = ({
 
     const handleDeleteChatHistorySession = useCallback((sessionId: string) => {
         logService.info(`Deleting session: ${sessionId}`);
+        
+        // --- Fix: LocalStorage fragmentation & infinite growth ---
+        // 精准清理特定 session 的 LocalStorage 缓存
+        try {
+            localStorage.removeItem(`chatDraft_${sessionId}`);
+            localStorage.removeItem(`chatQuotes_${sessionId}`);
+            localStorage.removeItem(`chatTtsContext_${sessionId}`);
+            localStorage.removeItem(`chat_scroll_pos_${sessionId}`);
+        } catch (e) {
+            console.error("Failed to clean up session localStorage:", e);
+        }
+        // ---------------------------------------------------------
+
         updateAndPersistSessions(prev => {
              const sessionToDelete = prev.find(s => s.id === sessionId);
              if (sessionToDelete) {
+                 // Abort active jobs for this session
                  sessionToDelete.messages.forEach(msg => {
                      if(msg.isLoading && activeJobs.current.has(msg.id)) {
                          activeJobs.current.get(msg.id)?.abort();
                          activeJobs.current.delete(msg.id);
                      }
+                     // Explicitly cleanup file blobs to prevent leaks
+                     cleanupFilePreviewUrls(msg.files);
                  });
              }
              return prev.filter(s => s.id !== sessionId);

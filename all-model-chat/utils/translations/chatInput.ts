@@ -1,7 +1,11 @@
 
+
+import React from 'react';
+import { translations } from '../../utils/appUtils';
+
 export const chatInputTranslations = {
     // ChatInput.tsx and subcomponents
-    chatInputPlaceholder: { en: 'Ask anything... (type /help for commands)', zh: '询问任何问题 (输入 /help 查看所有命令)' },
+    chatInputPlaceholder: { en: 'Ask anything...', zh: '询问任何问题' },
     aspectRatio_title: { en: 'Aspect Ratio', zh: '宽高比' },
     addById_placeholder: { en: 'Paste File ID (e.g., files/xyz123)', zh: '粘贴文件 ID (例如 files/xyz123)' },
     addById_aria: { en: 'File ID input', zh: '文件 ID 输入框' },
@@ -44,6 +48,8 @@ export const chatInputTranslations = {
     deep_search_short: { en: 'Deep', zh: '深度' },
     code_execution_label: { en: 'Code Execution', zh: '代码执行' },
     code_execution_short: { en: 'Code', zh: '代码' },
+    local_python_label: { en: 'Pyodide', zh: 'Pyodide' },
+    local_python_short: { en: 'Pyodide', zh: 'Pyodide' },
     url_context_label: { en: 'URL Context', zh: 'URL 上下文' },
     url_context_short: { en: 'URL', zh: 'URL' },
     tools_token_count_label: { en: 'Token Calculator', zh: 'Token 计算器' },
@@ -52,6 +58,7 @@ export const chatInputTranslations = {
     translate_button_title: { en: 'Translate to English', zh: '翻译成英文' },
     translating_button_title: { en: 'Translating...', zh: '翻译中...' },
     bbox_button_title: { en: 'Object Detection (BBox)', zh: '目标检测 (BBox)' },
+    guide_button_title: { en: 'HD Guide (Arrow)', zh: '高清引导 (箭头)' },
     fullscreen_tooltip_expand: { en: 'Expand Input', zh: '展开输入框' },
     fullscreen_tooltip_collapse: { en: 'Collapse Input', zh: '收起输入框' },
 

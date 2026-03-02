@@ -1,19 +1,20 @@
 
 import React, { useMemo } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import { ChatMessage, AppSettings, SideViewContent, VideoMetadata } from '../../types';
 import { Message } from '../message/Message';
 import { translations } from '../../utils/appUtils';
 import { HtmlPreviewModal } from '../modals/HtmlPreviewModal';
 import { FilePreviewModal } from '../modals/FilePreviewModal';
-import { ThemeColors } from '../../types/theme';
 import { WelcomeScreen } from './message-list/WelcomeScreen';
-import { MessageListPlaceholder } from './message-list/MessageListPlaceholder';
 import { ScrollNavigation } from './message-list/ScrollNavigation';
 import { FileConfigurationModal } from '../modals/FileConfigurationModal';
 import { MediaResolution } from '../../types/settings';
 import { isGemini3Model } from '../../utils/appUtils';
 import { TextSelectionToolbar } from './message-list/TextSelectionToolbar';
 import { useMessageListUI } from '../../hooks/useMessageListUI';
+import { useMessageListScroll } from './message-list/hooks/useMessageListScroll';
+import { MessageListFooter } from './message-list/MessageListFooter';
 
 export interface MessageListProps {
   messages: ChatMessage[];
@@ -26,7 +27,6 @@ export interface MessageListProps {
   onRetryMessage: (messageId: string) => void;
   onUpdateMessageFile: (messageId: string, fileId: string, updates: { videoMetadata?: VideoMetadata, mediaResolution?: MediaResolution }) => void;
   showThoughts: boolean;
-  themeColors: ThemeColors;
   themeId: string;
   baseFontSize: number;
   expandCodeBlocksByDefault: boolean;
@@ -42,24 +42,23 @@ export interface MessageListProps {
   onQuickTTS: (text: string) => Promise<string | null>;
   t: (key: keyof typeof translations, fallback?: string) => string;
   language: 'en' | 'zh';
-  scrollNavVisibility: { up: boolean, down: boolean };
-  onScrollToPrevTurn: () => void;
-  onScrollToNextTurn: () => void;
   chatInputHeight: number;
   appSettings: AppSettings;
   currentModelId: string;
   onOpenSidePanel: (content: SideViewContent) => void;
   onQuote: (text: string) => void;
   onInsert?: (text: string) => void;
+  activeSessionId: string | null;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ 
-    messages, sessionTitle, scrollContainerRef, setScrollContainerRef, onScrollContainerScroll, 
-    onEditMessage, onDeleteMessage, onRetryMessage, onUpdateMessageFile, showThoughts, themeColors, baseFontSize,
-    expandCodeBlocksByDefault, isMermaidRenderingEnabled, isGraphvizRenderingEnabled, onSuggestionClick, onOrganizeInfoClick, onFollowUpSuggestionClick, onTextToSpeech, onGenerateCanvas, onContinueGeneration, ttsMessageId, onQuickTTS, t, language, themeId,
-    scrollNavVisibility, onScrollToPrevTurn, onScrollToNextTurn,
-    chatInputHeight, appSettings, currentModelId, onOpenSidePanel, onQuote, onInsert
+    messages, sessionTitle, setScrollContainerRef, onScrollContainerScroll,
+    onEditMessage, onDeleteMessage, onRetryMessage, onUpdateMessageFile, showThoughts, baseFontSize,
+    expandCodeBlocksByDefault, isMermaidRenderingEnabled, isGraphvizRenderingEnabled, onSuggestionClick, onOrganizeInfoClick, onFollowUpSuggestionClick, onTextToSpeech, onGenerateCanvas, onContinueGeneration, ttsMessageId, onQuickTTS, t, themeId,
+    chatInputHeight, appSettings, currentModelId, onOpenSidePanel, onQuote, onInsert, activeSessionId
 }) => {
+  
+  // UI Logic (Modals, Previews, Configuration)
   const {
       previewFile,
       isHtmlPreviewModalOpen,
@@ -67,8 +66,6 @@ export const MessageList: React.FC<MessageListProps> = ({
       initialTrueFullscreenRequest,
       configuringFile,
       setConfiguringFile,
-      visibleMessages,
-      handleBecameVisible,
       handleFileClick,
       closeFilePreviewModal,
       allImages,
@@ -79,38 +76,51 @@ export const MessageList: React.FC<MessageListProps> = ({
       handleCloseHtmlPreview,
       handleConfigureFile,
       handleSaveFileConfig,
-      estimateMessageHeight
   } = useMessageListUI({ messages, onUpdateMessageFile });
 
+  // Scroll Logic
+  const {
+      virtuosoRef,
+      setInternalScrollerRef,
+      setAtBottom,
+      onRangeChanged,
+      scrollToPrevTurn,
+      scrollToNextTurn,
+      showScrollDown,
+      showScrollUp,
+      scrollerRef
+  } = useMessageListScroll({ messages, setScrollContainerRef, activeSessionId });
+
   // Determine if current model is Gemini 3 to enable per-part resolution
-  const isGemini3 = useMemo(() => {
-      return isGemini3Model(currentModelId);
-  }, [currentModelId]);
+  const isGemini3 = useMemo(() => isGemini3Model(currentModelId), [currentModelId]);
 
   return (
     <>
-    <div 
-      ref={setScrollContainerRef}
-      onScroll={onScrollContainerScroll}
-      className={`relative flex-grow overflow-y-auto px-1.5 sm:px-2 md:px-3 py-3 sm:py-4 md:py-6 custom-scrollbar ${themeId === 'pearl' ? 'bg-[var(--theme-bg-primary)]' : 'bg-[var(--theme-bg-secondary)]'}`}
-      style={{ paddingBottom: chatInputHeight ? `${chatInputHeight + 16}px` : '160px' }}
-      aria-live="polite" 
-    >
-      <TextSelectionToolbar onQuote={onQuote} onInsert={onInsert} onTTS={onQuickTTS} containerRef={scrollContainerRef} t={t} />
-      
-      {messages.length === 0 ? (
-        <WelcomeScreen 
-            t={t}
-            onSuggestionClick={onSuggestionClick}
-            onOrganizeInfoClick={onOrganizeInfoClick}
-            showSuggestions={appSettings.showWelcomeSuggestions ?? true}
-            themeId={themeId}
-        />
-      ) : (
-        <div className="w-full max-w-7xl mx-auto">
-          {messages.map((msg: ChatMessage, index: number) => {
-            if (visibleMessages.has(msg.id)) {
-                return (
+      <div className={`relative flex-grow h-full ${themeId === 'pearl' ? 'bg-[var(--theme-bg-primary)]' : 'bg-[var(--theme-bg-secondary)]'}`}>
+        {messages.length === 0 ? (
+          <WelcomeScreen 
+              t={t}
+              onSuggestionClick={onSuggestionClick}
+              onOrganizeInfoClick={onOrganizeInfoClick}
+              showSuggestions={appSettings.showWelcomeSuggestions ?? true}
+              themeId={themeId}
+          />
+        ) : (
+          <Virtuoso
+            ref={virtuosoRef}
+            data={messages}
+            scrollerRef={setInternalScrollerRef}
+            atBottomStateChange={setAtBottom}
+            followOutput={false} // Disable auto-scroll to bottom during streaming (we handle it via auto-anchor or user interaction)
+            rangeChanged={onRangeChanged}
+            increaseViewportBy={800} 
+            className="custom-scrollbar"
+            onScroll={onScrollContainerScroll} // Pass scroll event to parent handler
+            components={{
+                Footer: () => <MessageListFooter messages={messages} chatInputHeight={chatInputHeight} />
+            }}
+            itemContent={(index, msg) => (
+                <div className="px-1.5 sm:px-2 md:px-3 max-w-7xl mx-auto w-full">
                     <Message
                         key={msg.id}
                         message={msg}
@@ -123,7 +133,6 @@ export const MessageList: React.FC<MessageListProps> = ({
                         onImageClick={handleFileClick} 
                         onOpenHtmlPreview={handleOpenHtmlPreview}
                         showThoughts={showThoughts}
-                        themeColors={themeColors}
                         themeId={themeId}
                         baseFontSize={baseFontSize}
                         expandCodeBlocksByDefault={expandCodeBlocksByDefault}
@@ -140,55 +149,57 @@ export const MessageList: React.FC<MessageListProps> = ({
                         onConfigureFile={msg.role === 'user' ? handleConfigureFile : undefined}
                         isGemini3={isGemini3}
                     />
-                );
-            } else {
-                return (
-                    <MessageListPlaceholder
-                        key={`${msg.id}-placeholder`}
-                        height={estimateMessageHeight(msg, showThoughts)}
-                        onVisible={() => handleBecameVisible(msg.id)}
-                    />
-                );
-            }
-          })}
-        </div>
-      )}
-      
-      <ScrollNavigation 
-        showUp={scrollNavVisibility.up}
-        showDown={scrollNavVisibility.down}
-        onScrollToPrev={onScrollToPrevTurn}
-        onScrollToNext={onScrollToNextTurn}
-      />
-    </div>
+                </div>
+            )}
+          />
+        )}
+        
+        {/* Floating Toolbars & Navigation */}
+        <TextSelectionToolbar 
+            onQuote={onQuote} 
+            onInsert={onInsert} 
+            onTTS={onQuickTTS} 
+            containerRef={scrollerRef as any} 
+            t={t} 
+        />
+
+        <ScrollNavigation 
+          showUp={showScrollUp}
+          showDown={showScrollDown}
+          onScrollToPrev={scrollToPrevTurn}
+          onScrollToNext={scrollToNextTurn}
+          bottomOffset={chatInputHeight}
+        />
+      </div>
     
-    <FilePreviewModal 
-        file={previewFile} 
-        onClose={closeFilePreviewModal}
-        t={t}
-        onPrev={handlePrevImage}
-        onNext={handleNextImage}
-        hasPrev={currentImageIndex > 0}
-        hasNext={currentImageIndex !== -1 && currentImageIndex < allImages.length - 1}
-    />
-
-    {isHtmlPreviewModalOpen && htmlToPreview !== null && (
-      <HtmlPreviewModal
-        isOpen={isHtmlPreviewModalOpen}
-        onClose={handleCloseHtmlPreview}
-        htmlContent={htmlToPreview}
-        initialTrueFullscreenRequest={initialTrueFullscreenRequest}
+      {/* Modals */}
+      <FilePreviewModal 
+          file={previewFile} 
+          onClose={closeFilePreviewModal}
+          t={t}
+          onPrev={handlePrevImage}
+          onNext={handleNextImage}
+          hasPrev={currentImageIndex > 0}
+          hasNext={currentImageIndex !== -1 && currentImageIndex < allImages.length - 1}
       />
-    )}
 
-    <FileConfigurationModal 
-        isOpen={!!configuringFile} 
-        onClose={() => setConfiguringFile(null)} 
-        file={configuringFile?.file || null}
-        onSave={handleSaveFileConfig}
-        t={t}
-        isGemini3={isGemini3}
-    />
+      {isHtmlPreviewModalOpen && htmlToPreview !== null && (
+        <HtmlPreviewModal
+          isOpen={isHtmlPreviewModalOpen}
+          onClose={handleCloseHtmlPreview}
+          htmlContent={htmlToPreview}
+          initialTrueFullscreenRequest={initialTrueFullscreenRequest}
+        />
+      )}
+
+      <FileConfigurationModal 
+          isOpen={!!configuringFile} 
+          onClose={() => setConfiguringFile(null)} 
+          file={configuringFile?.file || null}
+          onSave={handleSaveFileConfig}
+          t={t}
+          isGemini3={isGemini3}
+      />
     </>
   );
 };

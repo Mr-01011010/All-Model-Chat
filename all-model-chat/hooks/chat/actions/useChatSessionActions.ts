@@ -1,6 +1,7 @@
 
 import { useCallback } from 'react';
 import { ChatSettings as IndividualChatSettings, SavedChatSession, UploadedFile } from '../../../types';
+import { cleanupFilePreviewUrls } from '../../../utils/appUtils';
 
 interface UseChatSessionActionsProps {
     activeSessionId: string | null;
@@ -28,17 +29,21 @@ export const useChatSessionActions = ({
         if (isLoading) handleStopGenerating();
         if (activeSessionId) {
             updateAndPersistSessions(prev =>
-                prev.map(s =>
-                    s.id === activeSessionId
-                        ? {
+                prev.map(s => {
+                    if (s.id === activeSessionId) {
+                        // Cleanup files in the cleared session
+                        s.messages.forEach(msg => cleanupFilePreviewUrls(msg.files));
+                        
+                        return {
                             ...s,
                             messages: [],
                             title: "New Chat",
                             // Resetting lockedApiKey is crucial to allow using new global settings
                             settings: { ...s.settings, lockedApiKey: null }
-                          }
-                        : s
-                )
+                        };
+                    }
+                    return s;
+                })
             );
             setSelectedFiles([]);
         } else {
@@ -61,7 +66,23 @@ export const useChatSessionActions = ({
     const toggleCodeExecution = useCallback(() => {
         if (!activeSessionId) return;
         if (isLoading) handleStopGenerating();
-        setCurrentChatSettings(prev => ({ ...prev, isCodeExecutionEnabled: !prev.isCodeExecutionEnabled }));
+        // Mutually exclusive: Disable Local Python if enabling Server Code Execution
+        setCurrentChatSettings(prev => ({ 
+            ...prev, 
+            isCodeExecutionEnabled: !prev.isCodeExecutionEnabled,
+            isLocalPythonEnabled: !prev.isCodeExecutionEnabled ? false : prev.isLocalPythonEnabled
+        }));
+    }, [activeSessionId, isLoading, setCurrentChatSettings, handleStopGenerating]);
+
+    const toggleLocalPython = useCallback(() => {
+        if (!activeSessionId) return;
+        if (isLoading) handleStopGenerating();
+        // Mutually exclusive: Disable Server Code Execution if enabling Local Python
+        setCurrentChatSettings(prev => ({ 
+            ...prev, 
+            isLocalPythonEnabled: !prev.isLocalPythonEnabled,
+            isCodeExecutionEnabled: !prev.isLocalPythonEnabled ? false : prev.isCodeExecutionEnabled
+        }));
     }, [activeSessionId, isLoading, setCurrentChatSettings, handleStopGenerating]);
 
     const toggleUrlContext = useCallback(() => {
@@ -81,6 +102,7 @@ export const useChatSessionActions = ({
         handleTogglePinCurrentSession,
         toggleGoogleSearch,
         toggleCodeExecution,
+        toggleLocalPython,
         toggleUrlContext,
         toggleDeepSearch
     };

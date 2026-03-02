@@ -15,14 +15,26 @@ export interface UploadedFile {
   name: string; // Original filename
   type: string;
   size: number;
+  
+  // PRIMARY DATA SOURCE:
+  // A standard Blob or File object. 
+  // This is stored in IndexedDB and used for API uploads.
+  // It should ALWAYS be present for binary files.
+  rawFile?: File | Blob; 
+
+  // UI DISPLAY:
+  // A temporary `blob:` URL created via URL.createObjectURL(rawFile).
+  // This is used for <img> tags and previews.
+  // It is ephemeral and revoked on session unload.
+  // It should NOT contain a Base64 data URI string.
   dataUrl?: string;
+
   textContent?: string;
   isProcessing?: boolean;
   progress?: number;
   error?: string;
 
   // Fields for API uploaded files like PDFs
-  rawFile?: File | Blob; // Persisted File/Blob for offline access, used to generate dataUrl on load.
   fileUri?: string; // URI returned by Gemini API (e.g., "files/xxxxxxxx")
   fileApiName?: string; // Full resource name from API (e.g., "files/xxxxxxxx")
   uploadState?: 'pending' | 'uploading' | 'processing_api' | 'active' | 'failed' | 'cancelled'; // State of the file on Gemini API
@@ -64,6 +76,7 @@ export interface ChatMessage {
   stoppedByUser?: boolean;
   thoughtSignatures?: string[]; // Added for Gemini 3 Pro reasoning continuity
   excludeFromContext?: boolean; // Added to exclude message from API history context
+  apiParts?: any[]; // Natively preserves API parts like executableCode and codeExecutionResult
 }
 
 // Defines the structure for a part of a content message
@@ -159,6 +172,8 @@ export interface ChatInputToolbarProps {
   isNativeAudioModel?: boolean;
   mediaResolution?: MediaResolution;
   setMediaResolution?: (resolution: MediaResolution) => void;
+  ttsContext?: string;
+  onEditTtsContext?: () => void;
 }
 
 export interface ChatInputActionsProps {
@@ -168,6 +183,8 @@ export interface ChatInputActionsProps {
   onToggleGoogleSearch: () => void;
   isCodeExecutionEnabled: boolean;
   onToggleCodeExecution: () => void;
+  isLocalPythonEnabled?: boolean;
+  onToggleLocalPython?: () => void;
   isUrlContextEnabled: boolean;
   onToggleUrlContext: () => void;
   isDeepSearchEnabled: boolean;
@@ -231,6 +248,8 @@ export interface ChatInputProps {
   onToggleGoogleSearch: () => void;
   isCodeExecutionEnabled: boolean;
   onToggleCodeExecution: () => void;
+  isLocalPythonEnabled?: boolean;
+  onToggleLocalPython?: () => void;
   isUrlContextEnabled: boolean;
   onToggleUrlContext: () => void;
   isDeepSearchEnabled: boolean;
@@ -261,6 +280,8 @@ export interface ChatInputProps {
   onLiveTranscript?: (text: string, role: 'user' | 'model', isFinal: boolean, type?: 'content' | 'thought', audioUrl?: string | null) => void;
   onToggleBBox?: () => void;
   isBBoxModeActive?: boolean;
+  onToggleGuide?: () => void;
+  isGuideModeActive?: boolean;
   themeId: string;
 }
 
