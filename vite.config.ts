@@ -7,6 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { VitePWA } from 'vite-plugin-pwa';
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 const MERMAID_DIST_IMPORTER_PATTERN = /node_modules[\\/]mermaid[\\/]dist[\\/]/;
 const MERMAID_DISABLED_MODULE_PREFIX = '\0disabled-mermaid-diagram:';
 const DISABLED_MERMAID_DIAGRAMS = [
@@ -391,6 +393,7 @@ export default defineConfig(({ mode }) => {
           },
         ],
       }),
+      cloudflare()
     ],
     define: {
       'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
